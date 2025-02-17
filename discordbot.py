@@ -395,4 +395,4 @@ async def singed_gremista(interaction: discord.Interaction, user: discord.User, 
 
 # Comando para entrar no canal de voz
 
-client_instance.run('token')  # Substitua pelo seu token :)
+client_instance.run('MTI2NjkzNzY1NzY5OTYwMjQzMg.G3DZRH.-95mUPb8G3gDDwXOvpXkOAxUO-AUAQ4x7TDtO8')  # Substitua pelo seu token :)
