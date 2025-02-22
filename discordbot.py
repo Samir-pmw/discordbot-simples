@@ -6,10 +6,45 @@ import os
 from typing import Optional
 import re
 import asyncio
+import logging
+from datetime import datetime
 intents = discord.Intents.default()
 intents.message_content = True
 
-#variáveis de ambiente
+"criando um arquivo de log"
+logging.basicConfig(
+    filename="C:/Users/Vezkalin/Desktop/bot_logs.txt",  # Nome fixo do arquivo de logs
+    level=logging.INFO,       # Nível de logs (INFO, WARNING, ERROR, etc.)
+    format='%(asctime)s - %(levelname)s - %(message)s',  # Formato do log
+    datefmt='%Y-%m-%d %H:%M:%S'  # Formato da data/hora
+)
+
+
+# Lista de variáveis da Peni Parker
+atividades = [
+    {"name": "Hackeando sua mãe. 🕷️", "type": ActivityType.competing},
+    {"name": 'i like the way you kiss me 🎵', "type": ActivityType.listening},
+    {"name": "RPG do Cellbit ☝️🤓", "type": ActivityType.watching},
+    {"name": "Rolando dados por nenhuma razão, enquanto joga e assiste Subway Surfers 🎲", "type": ActivityType.playing},
+    {"name": "Puta com a segração socioeconômica nacional. 💣", "type": ActivityType.competing}
+]
+gifs_peni_parker = [
+    'https://media1.tenor.com/m/o8Jr5LwAGX0AAAAd/peni-parker-angry.gif',
+    'https://media1.tenor.com/m/seZp-sCxTrgAAAAd/peni-parker-spiderverse.gif',
+    'https://media1.tenor.com/m/WeSIDnKWYX4AAAAd/peni-parker-spiderverse.gif'
+]
+respostas_peni_parker = [
+    "Cê tá de brincadeira, né? Acima de 100d1000? Quer travar o bot ou criar um buraco negro no meu PC? Vai caçar o que fazer, cara!",
+    "Acima de 100d1000? Sério? Tu quer que eu exploda? Vai rolar isso na mão, seu maluco!",
+    "Ah, vai se tratar! Acima de 100d1000? Tu acha que eu sou a NASA pra calcular isso? Vai rolar essa porra no caralho",
+    "Acima de 100d1000? Tu tá de sacanagem, né? Nem o Doutor Estranho conseguiria lidar com essa maluquice! Para de ser doido!",
+    "Cê tá achando que isso aqui é o Multiverso? Acima de 100d1000? Vai rolar isso no papel, vagabundo!",
+    "Acima de 100d1000? Tu quer que eu chame o Homem-Aranha pra te dar um susto? Para de ser otário!",
+    "Ah, vai catar coquinho! Acima de 100d1000? Nem o Tony Stark com todo o dinheiro dele ia aguentar essa palhaçada!",
+    "Acima de 100d1000? Tu tá achando que isso aqui é o Quartel General dos Vingadores? Para de ser doido, cara!",
+    "Ah, vai arrumar um emprego! Acima de 100d1000? Tu quer travar o bot ou conquistar o mundo? Para de ser besta!",
+    "Acima de 100d1000? Tu tá achando que eu sou o Visão pra calcular isso? Vai jogar Uno, seu doido!"
+]
 comandos_ajuda = [
         "**Comandos_ajuda RPG:**",
         "/criar_campanha - Cria nova campanha",
@@ -54,16 +89,8 @@ class Client(discord.Client):
 
         # Inicia o loop para mudar a atividade periodicamente
         self.loop.create_task(self.mudar_atividade_periodicamente())
-
     async def mudar_atividade_periodicamente(self):
         # Lista de atividades para alternar
-        atividades = [
-            {"name": "Hackeando você. 🖥️", "type": ActivityType.competing},
-            {"name": 'i like the way you kiss me 🎵', "type": ActivityType.listening},
-            {"name": "RPG do Cellbit ☝️🤓", "type": ActivityType.watching},
-            {"name": "Rolando dados aleatórios 🎲", "type": ActivityType.playing},
-            {"name": "Puta com a segração socioeconômica nacional. 💣", "type": ActivityType.competing}
-        ]
 
         while not self.is_closed():
             for atividade in atividades:
@@ -71,75 +98,128 @@ class Client(discord.Client):
                 await self.change_presence(activity=activity)
                 print(f"Atividade alterada para: {atividade['name']}")
                 await asyncio.sleep(7200)  # Espera 2 horas (7200 segundos)
+    async def on_guild_join(self, guild):
+        # Envia uma mensagem no canal padrão do servidor
+        canal = guild.system_channel  # Canal padrão do servidor
+        if canal is not None:  # Verifica se o canal existe
+            await canal.send("Oiiiiiiiii! Vim ajudar com os RPGs :p\n")
+            await canal.send("https://media1.tenor.com/m/OjTReal8iZgAAAAC/hi-chat-peni-parker.gif")
+        else:
+            print(f"Não foi possível enviar a mensagem no servidor {guild.name}. Canal padrão não encontrado.")
 
 # Inicia o bot
 client_instance = Client()
 
-dados_regex = re.compile(r'^(\d+)d(\d+)(([+-]\d+)*)$')
 
-#função de rolar dado
+
+# Expressão regular para capturar múltiplas rolagens e operações (incluindo termos como +2d20 ou -3d6)
+dados_regex = re.compile(r'([+-]?\d+d\d+)|([+-]?\d+)')
+def registrar_log(mensagem: str, nivel: str = 'info'):
+    """
+    Registra uma mensagem no arquivo de logs.
+    
+    :param mensagem: A mensagem a ser registrada.
+    :param nivel: O nível do log ('info', 'warning', 'error').
+    """
+    if nivel.lower() == 'info':
+        logging.info(mensagem)
+    elif nivel.lower() == 'warning':
+        logging.warning(mensagem)
+    elif nivel.lower() == 'error':
+        logging.error(mensagem)
+    else:
+        logging.info(mensagem)  # Padrão para 'info' se o nível não for reconhecido
+
 async def processar_rolagem(dados: str, interaction=None, message=None):
     try:
-        # Separa a parte dos dados (XdY) das operações (+Z, -Z, etc.)
-        if '+' in dados or '-' in dados:
-            partes = re.split(r'([+-])', dados)  # Divide a string em partes
-            dados = partes[0]  # A primeira parte é XdY
-            operacoes = partes[1:]  # O restante são as operações
-        else:
-            operacoes = []
-
-        # Extrai a quantidade de dados e o número de faces
-        qtd, faces = map(int, dados.lower().split('d'))
-
-        # Processa todos os operadores e valores (se houver)
-        total_operacoes = 0
-        ops_formatadas = []
-        if operacoes:
-            for i in range(0, len(operacoes), 2):
-                operador = operacoes[i]  # + ou -
-                valor = int(operacoes[i + 1])  # Valor após o operador
-                total_operacoes += valor if operador == '+' else -valor
-                ops_formatadas.append(f"{operador}{abs(valor)}")
-
-        # Verifica os limites
-        if qtd > 100 or faces > 1000:
-            if interaction:
-                await interaction.response.send_message("Use no máximo 100d1000!", ephemeral=True)
-            elif message:
-                await message.reply("Use no máximo 100d1000!", mention_author=True)
-            return
-
-        # Rola os dados
-        resultados = [random.randint(1, faces) for _ in range(qtd)]
-        total = sum(resultados) + total_operacoes
-
+        registrar_log(f"Iniciando processamento da rolagem: {dados}, pelo usuário: {message.author}", 'info')
+        # Encontra todas as partes da expressão (rolagens e números)
+        partes = dados_regex.findall(dados)
+        
+        total = 0
+        detalhes = []
+        primeiro_dado = True  # Flag para identificar o primeiro dado
+        natural_20 = False  # Flag para verificar se houve um natural 20
+        
+        for parte in partes:
+            rolagem, numero = parte
+            
+            if rolagem:  # Se for uma rolagem (como +2d20 ou -3d6)
+                operador = '+'  # Operador padrão
+                if rolagem.startswith(('+', '-')):
+                    operador = rolagem[0]
+                    rolagem = rolagem[1:]  # Remove o operador da string
+                
+                qtd, faces = map(int, rolagem.split('d'))
+                
+                # Verifica os limites
+                if qtd > 100 or faces > 1000:
+                    if interaction:
+                        await interaction.response.send_message("Use no máximo 100d1000!", ephemeral=False)
+                    elif message:
+                        await message.reply(f"{random.choice(respostas_peni_parker)}", mention_author=True)
+                        await message.channel.send(random.choice(gifs_peni_parker))
+                
+                # Rola os dados e ordena os resultados em ordem crescente
+                resultados = sorted([random.randint(1, faces) for _ in range(qtd)])
+                soma_rolagem = sum(resultados)
+                
+                # Verifica se houve um natural 20
+                if rolagem == "1d20" and 20 in resultados:
+                    natural_20 = True
+                
+                # Aplica o operador (+ ou -)
+                if operador == '+':
+                    total += soma_rolagem
+                else:
+                    total -= soma_rolagem
+                
+                # Formata os detalhes
+                if primeiro_dado:
+                    # Remove o operador do primeiro dado
+                    if qtd <= 100:
+                        detalhes.append(f"{rolagem}: {resultados} = ``{soma_rolagem}``")
+                    else:
+                        detalhes.append(f"{rolagem}: ``{soma_rolagem}`` (muitos dados)")
+                    primeiro_dado = False
+                else:
+                    # Adiciona o operador para os demais dados
+                    if qtd <= 100:
+                        detalhes.append(f" {operador} {rolagem}: {resultados} = ``{soma_rolagem}``")
+                    else:
+                        detalhes.append(f" {operador} {rolagem}: ``{soma_rolagem}`` (muitos dados)")
+            
+            elif numero:  # Se for um número (como +5 ou -3)
+                valor = int(numero)
+                total += valor
+                detalhes.append(f" `{numero}`")
+        
         # Monta a resposta
-        resposta = f"> 🎲 **{qtd}d{faces}**: {resultados}"
-        if ops_formatadas:
-            resposta += f" ⟶ `{sum(resultados)}{''.join(ops_formatadas)}`"
-        resposta += f"\n**Total:** ``{total}``"
-
-        # Funcionalidade secreta: Se for 1d20 e o resultado for 20, envia um gif de anime
-        if qtd == 1 and faces == 20 and resultados[0] == 20 and not operacoes:
-            resposta += f"\n\n🎉 **VINTE NATURAL!** 🎉"
+        resposta = "🎲 **Resultado das rolagens:**\n"
+        resposta += "".join(detalhes) + f"\n**Total:** ``{total}``"
+        
+        # Verifica se houve um natural 20
+        if natural_20:
+            resposta += "\n\n🎉 **VINTE NATURAL!** 🎉"
             if interaction:
-                await interaction.response.send_message(resposta)  # Envia a resposta normal
-                await interaction.followup.send(random.choice(gifs_anime))  # Envia o gif em uma nova mensagem
+                await interaction.response.send_message(resposta)
+                await interaction.followup.send(random.choice(gifs_peni_parker))
             elif message:
-                await message.reply(resposta, mention_author=True)  # Envia a resposta normal
-                await message.channel.send(random.choice(gifs_anime))  # Envia o gif no mesmo canal
+                await message.reply(resposta)
+                await message.channel.send(random.choice(gifs_peni_parker))
         else:
             if interaction:
                 await interaction.response.send_message(resposta, ephemeral=False)
             elif message:
-                await message.reply(resposta, mention_author=True)
+                await message.reply(resposta)
 
     except Exception as e:
-        print(e)  # Para debug
+        # Trata erros inesperados
+        erro = f"❌ **Erro ao processar a rolagem:** {str(e)}"
         if interaction:
-            await interaction.response.send_message("Formato inválido! Use algo como '2d20+5' ou '3d6-2'.", ephemeral=True)
+            await interaction.response.send_message(erro, ephemeral=False)
         elif message:
-            await message.reply("Formato inválido! Use algo como '2d20+5' ou '3d6-2'.", mention_author=True)
+            await message.reply(erro)
 
 def ler_inventario(user_id: int, campanha: str) -> dict[str, int]:
     """Lê o inventário de uma campanha de forma segura e eficiente."""
@@ -215,7 +295,7 @@ async def criar_campanha(interaction: discord.Interaction, nome: str):
     else:
         escrever_inventario(user_id, nome, {})
         escrever_ficha(user_id, nome, "")
-        await interaction.response.send_message(f"Campanha '{nome}' criada com sucesso!", ephemeral=False)
+        await interaction.response.send_message(f"Campanha '{nome}' criada com sucesso! Agora é só começar a aventura. 🕷️", ephemeral=False)
 
 # Comando para remover uma campanha
 @client_instance.tree.command(name='remover_campanha', description='Remove uma campanha existente.')
@@ -252,7 +332,7 @@ async def selecionar_campanha(interaction: discord.Interaction, nome: str):
     if nome in campanhas:
         # Armazena a campanha selecionada no dicionário global
         campanha_selecionada[user_id] = nome
-        await interaction.response.send_message(f"Campanha '{nome}' selecionada!", ephemeral=False)
+        await interaction.response.send_message(f"Campanha '{nome}' selecionada! Tudo pronto para continuar. ;)", ephemeral=False)
     else:
         await interaction.response.send_message(f"Campanha '{nome}' não encontrada.", ephemeral=True)
 
@@ -280,7 +360,7 @@ async def add_item(interaction: discord.Interaction, nome: str, quantidade: int)
     global campanha_selecionada
     
     if user_id not in campanha_selecionada:
-        await interaction.response.send_message("Nenhuma campanha selecionada. Use /selecionar_campanha primeiro.", ephemeral=True)
+        await interaction.response.send_message("Nenhuma campanha selecionada. Use /selecionar_campanha primeiro bobinho.", ephemeral=True)
         return
     
     campanha = campanha_selecionada[user_id]
@@ -294,7 +374,7 @@ async def add_item(interaction: discord.Interaction, nome: str, quantidade: int)
         inventario[nome_normalizado] = quantidade
     
     escrever_inventario(user_id, campanha, inventario)
-    await interaction.response.send_message(f"Adicionado {quantidade}x {nome} ao inventário da campanha '{campanha}'.", ephemeral=False)
+    await interaction.response.send_message(f"Adicionado {quantidade}x {nome} ao inventário da campanha '{campanha}'. Pode ser útil mais tarde.", ephemeral=False)
 #remover itens
 @client_instance.tree.command(name='remover', description='Remove um item do inventário da campanha selecionada.')
 async def remover_item(interaction: discord.Interaction, nome: str, quantidade: int):
@@ -316,7 +396,7 @@ async def remover_item(interaction: discord.Interaction, nome: str, quantidade: 
             if inventario[nome_normalizado] == 0:
                 del inventario[nome_normalizado]  # Remove o item se a quantidade for zero
             escrever_inventario(user_id, campanha, inventario)
-            await interaction.response.send_message(f"Removido {quantidade}x {nome} do inventário da campanha '{campanha}'.", ephemeral=False)
+            await interaction.response.send_message(f"Removido {quantidade}x {nome} do inventário da campanha '{campanha}'. paiou :<", ephemeral=False)
         else:
             await interaction.response.send_message(f"Você não tem {quantidade}x {nome} no inventário para remover.", ephemeral=True)
     else:
@@ -340,7 +420,7 @@ async def mostrar_inventario(interaction: discord.Interaction):
             resposta += f"* {quantidade}x {item_normalizado}\n"
         await interaction.response.send_message(resposta, ephemeral=False)
     else:
-        await interaction.response.send_message(f"O inventário da campanha '{campanha}' está vazio.", ephemeral=False)
+        await interaction.response.send_message(f"O inventário da campanha '{campanha}' está vazio. Hora de sair para coletar alguns itens! :p", ephemeral=False)
 
 # Comando para registrar ficha na campanha selecionada
 @client_instance.tree.command(name='registrar_ficha', description='Registra uma ficha na campanha selecionada.')
@@ -354,7 +434,7 @@ async def registrar_ficha(interaction: discord.Interaction, texto: str):
     
     campanha = campanha_selecionada[user_id]
     escrever_ficha(user_id, campanha, texto)
-    await interaction.response.send_message(f"Ficha registrada na campanha '{campanha}': {texto}", ephemeral=True)
+    await interaction.response.send_message(f"Ficha registrada na campanha '{campanha}': {texto}. Vambora, espero que sua realidade não termine como a minha...", ephemeral=True)
 
 # Comando para ver a ficha da campanha selecionada
 @client_instance.tree.command(name='ficha', description='Mostra a ficha da campanha selecionada.')
@@ -371,7 +451,7 @@ async def mostrar_ficha(interaction: discord.Interaction):
     if ficha:
         await interaction.response.send_message(f"Ficha da campanha '{campanha}': {ficha}", ephemeral=False)
     else:
-        await interaction.response.send_message(f"Nenhuma ficha registrada na campanha '{campanha}'.", ephemeral=True)
+        await interaction.response.send_message(f"Nenhuma ficha registrada na campanha '{campanha}'. Que tal criar uma?", ephemeral=True)
 
 @client_instance.tree.command(name='rolar', description='Rola dados no formato XdY+Z ou XdY-Z')
 async def rolar_dados(interaction: discord.Interaction, dados: str):
@@ -398,7 +478,7 @@ async def limpar_mensagens(interaction: discord.Interaction, quantidade: int):
     
     quantidade = max(1, min(quantidade, 100))
     await interaction.channel.purge(limit=quantidade)
-    await interaction.response.send_message(f"{quantidade} mensagens apagadas!", ephemeral=True)
+    await interaction.followup.send(f"{len(quantidade)} mensagens deletadas. Pronto, tudo limpo! 🕷️", ephemeral=True)
 # Ajuda fio
 @client_instance.tree.command(name='ajuda', description='Peça ajuda para o bot.')
 async def ajuda(interaction: discord.Interaction):
@@ -437,34 +517,13 @@ async def ban(interaction: discord.Interaction, user: discord.User):
         try:
             member = await interaction.guild.fetch_member(user.id) 
             await interaction.guild.ban(member)
-            await interaction.response.send_message(f'{user.mention} foi banido do servidor.', ephemeral=True)
+            await interaction.response.send_message(f'{user.mention} foi banido do servidor. Boboca não tem vez aqui :p', ephemeral=True)
         except discord.Forbidden:
             await interaction.response.send_message('Eu não tenho permissão para banir este usuário.', ephemeral=True)
         except discord.HTTPException as error:
             await interaction.response.send_message(f'Ocorreu um erro ao tentar banir este usuário: {error}', ephemeral=True)
     else:
         await interaction.response.send_message('Você não tem permissão para usar este comando.', ephemeral=True)
-#deletar muitas mensagens.(criei um limite de 50)
-@client_instance.tree.command(name='deletar', description='Deleta x mensagens.')
-async def deletar_mensagens(interaction: discord.Interaction, number: int):
-    if not interaction.user.guild_permissions.manage_messages and interaction.user.name not in ['vezkalin', 'vezkalinn', 'musiqueira_profissa']:
-        await interaction.response.send_message("Você não tem permissão para usar esse comando.", ephemeral=True)
-        return
-    
-    if number < 1:
-        await interaction.response.send_message("Você precisa deletar pelo menos 1 mensagem.", ephemeral=True)
-        return
-    if number > 50:
-        await interaction.response.send_message("Você pode deletar no máximo 50 mensagens de uma vez né kcta, acalma o cu.", ephemeral=True)
-        return
-    
-    await interaction.response.send_message("Deletando mensagens...", ephemeral=True)
-    
-    try:
-        deleted = await interaction.channel.purge(limit=number)
-        await interaction.followup.send(f"Deletado com sucesso {len(deleted)} mensagens.", ephemeral=True)
-    except discord.HTTPException as e:
-        await interaction.followup.send(f"Erro ao deletar mensagens: {e}", ephemeral=True)
 #um comando para spammar o singed gremista.
 @client_instance.tree.command(name='spam_singed_gremista', description='Spamma singed gremista no pv de alguém.')
 async def singed_gremista(interaction: discord.Interaction, user: discord.User, vezes: int):
