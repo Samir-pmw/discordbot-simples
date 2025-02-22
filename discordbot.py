@@ -1,14 +1,43 @@
 import discord
 import random
+from discord import Activity, ActivityType
 from discord import app_commands
 import os
+from typing import Optional
+import re
+import asyncio
 intents = discord.Intents.default()
 intents.message_content = True
 
+#variáveis de ambiente
+comandos_ajuda = [
+        "**Comandos_ajuda RPG:**",
+        "/criar_campanha - Cria nova campanha",
+        "/selecionar_campanha - Escolhe campanha ativa",
+        "/registrar_ficha [texto] - registra uma ficha",
+        "/ficha - mostra a ficha",
+        "/add [item] [quantidade] - Adiciona itens",
+        "/remover [item] [quantidade] - Remover itens",
+        "/inventario - Mostra seu inventário",
+        "/rolar [XdY] - Rola dados",
+        "\n**Outros Comandos_ajuda:**",
+        "/spam_singed_gremista [usuário] [quantidade] - Spamma singeds gremistas no privado",
+        "/ban - Banir usuário",
+        "/limpar [quantidade] - Apaga mensagens",
+        "/ajuda - Mostra esta ajuda",
+        "\n**Comandos Passivos:**",
+        'xDy - não precisa da "/" para funcionar.',
+        "\nQuer me convidar para o seu servidor? [Clique aqui.](https://discord.com/oauth2/authorize?client_id=1266937657699602432&permissions=8&integration_type=0&scope=applications.commands+bot)"
+    ]
 
+
+gifs_anime = ["https://media1.tenor.com/m/XNRRNuKYxHwAAAAd/right-now-it%E2%80%99s-just-that-everything-feels-right-sorry-amanai.gif",
+                             "https://tenor.com/view/cellbit-puto-gif-23527036",
+                            "https://tenor.com/view/shuumatsu-no-valkyrie-nikola-tesla-record-of-ragnarok-enygma-gif-12505791092849673790",
+                            "https://tenor.com/view/o-gif-6887207115184691665"]  # Substitua pelo link do gif desejado
 class Client(discord.Client):
     def __init__(self):
-        super().__init__(intents=discord.Intents.default())
+        super().__init__(intents=intents)  # Usar a variável intents aqui
         self.tree = app_commands.CommandTree(self)
         self.synced = False
 
@@ -23,10 +52,94 @@ class Client(discord.Client):
             self.synced = True
         print(f"Entramos como {self.user}.")
 
+        # Inicia o loop para mudar a atividade periodicamente
+        self.loop.create_task(self.mudar_atividade_periodicamente())
+
+    async def mudar_atividade_periodicamente(self):
+        # Lista de atividades para alternar
+        atividades = [
+            {"name": "Hackeando você. 🖥️", "type": ActivityType.competing},
+            {"name": 'i like the way you kiss me 🎵', "type": ActivityType.listening},
+            {"name": "RPG do Cellbit ☝️🤓", "type": ActivityType.watching},
+            {"name": "Rolando dados aleatórios 🎲", "type": ActivityType.playing},
+            {"name": "Puta com a segração socioeconômica nacional. 💣", "type": ActivityType.competing}
+        ]
+
+        while not self.is_closed():
+            for atividade in atividades:
+                activity = Activity(name=atividade["name"], type=atividade["type"])
+                await self.change_presence(activity=activity)
+                print(f"Atividade alterada para: {atividade['name']}")
+                await asyncio.sleep(7200)  # Espera 2 horas (7200 segundos)
+
+# Inicia o bot
 client_instance = Client()
 
-import os
-from typing import Optional
+dados_regex = re.compile(r'^(\d+)d(\d+)(([+-]\d+)*)$')
+
+#função de rolar dado
+async def processar_rolagem(dados: str, interaction=None, message=None):
+    try:
+        # Separa a parte dos dados (XdY) das operações (+Z, -Z, etc.)
+        if '+' in dados or '-' in dados:
+            partes = re.split(r'([+-])', dados)  # Divide a string em partes
+            dados = partes[0]  # A primeira parte é XdY
+            operacoes = partes[1:]  # O restante são as operações
+        else:
+            operacoes = []
+
+        # Extrai a quantidade de dados e o número de faces
+        qtd, faces = map(int, dados.lower().split('d'))
+
+        # Processa todos os operadores e valores (se houver)
+        total_operacoes = 0
+        ops_formatadas = []
+        if operacoes:
+            for i in range(0, len(operacoes), 2):
+                operador = operacoes[i]  # + ou -
+                valor = int(operacoes[i + 1])  # Valor após o operador
+                total_operacoes += valor if operador == '+' else -valor
+                ops_formatadas.append(f"{operador}{abs(valor)}")
+
+        # Verifica os limites
+        if qtd > 100 or faces > 1000:
+            if interaction:
+                await interaction.response.send_message("Use no máximo 100d1000!", ephemeral=True)
+            elif message:
+                await message.reply("Use no máximo 100d1000!", mention_author=True)
+            return
+
+        # Rola os dados
+        resultados = [random.randint(1, faces) for _ in range(qtd)]
+        total = sum(resultados) + total_operacoes
+
+        # Monta a resposta
+        resposta = f"> 🎲 **{qtd}d{faces}**: {resultados}"
+        if ops_formatadas:
+            resposta += f" ⟶ `{sum(resultados)}{''.join(ops_formatadas)}`"
+        resposta += f"\n**Total:** ``{total}``"
+
+        # Funcionalidade secreta: Se for 1d20 e o resultado for 20, envia um gif de anime
+        if qtd == 1 and faces == 20 and resultados[0] == 20 and not operacoes:
+            resposta += f"\n\n🎉 **VINTE NATURAL!** 🎉"
+            if interaction:
+                await interaction.response.send_message(resposta)  # Envia a resposta normal
+                await interaction.followup.send(random.choice(gifs_anime))  # Envia o gif em uma nova mensagem
+            elif message:
+                await message.reply(resposta, mention_author=True)  # Envia a resposta normal
+                await message.channel.send(random.choice(gifs_anime))  # Envia o gif no mesmo canal
+        else:
+            if interaction:
+                await interaction.response.send_message(resposta, ephemeral=False)
+            elif message:
+                await message.reply(resposta, mention_author=True)
+
+    except Exception as e:
+        print(e)  # Para debug
+        if interaction:
+            await interaction.response.send_message("Formato inválido! Use algo como '2d20+5' ou '3d6-2'.", ephemeral=True)
+        elif message:
+            await message.reply("Formato inválido! Use algo como '2d20+5' ou '3d6-2'.", mention_author=True)
 
 def ler_inventario(user_id: int, campanha: str) -> dict[str, int]:
     """Lê o inventário de uma campanha de forma segura e eficiente."""
@@ -260,24 +373,23 @@ async def mostrar_ficha(interaction: discord.Interaction):
     else:
         await interaction.response.send_message(f"Nenhuma ficha registrada na campanha '{campanha}'.", ephemeral=True)
 
-# Sistema de rolagem de dados
-@client_instance.tree.command(name='rolar', description='Rola dados no formato XdY')
+@client_instance.tree.command(name='rolar', description='Rola dados no formato XdY+Z ou XdY-Z')
 async def rolar_dados(interaction: discord.Interaction, dados: str):
-    try:
-        qtd, faces = map(int, dados.lower().split('d'))
-        if qtd > 100 or faces > 1000:
-            await interaction.response.send_message("Use no máximo 100d1000!", ephemeral=True)
-            return
-        
-        resultados = [random.randint(1, faces) for _ in range(qtd)]
-        total = sum(resultados)
-        resposta = f"🎲 **{qtd}d{faces}**: {resultados}\n**Total**: {total}"
-        await interaction.response.send_message(resposta, ephemeral=False)
-    
-    except Exception:
-        await interaction.response.send_message("Formato inválido! Use algo como '2d20'", ephemeral=True)
+    await processar_rolagem(dados, interaction=interaction)
 
-# Comandos de administração
+# Evento on_message para detectar rolagens de dados sem o comando /rolar
+@client_instance.event
+async def on_message(message: discord.Message):
+    # Ignora mensagens enviadas pelo próprio bot
+    if message.author == client_instance.user:
+        return
+
+    # Verifica se a mensagem corresponde ao formato de rolagem de dados
+    match = dados_regex.match(message.content.lower())
+    if match:
+        await processar_rolagem(message.content, message=message)
+
+# Comandos_ajuda de administração
 @client_instance.tree.command(name='limpar', description='Apaga mensagens (requer permissão)')
 async def limpar_mensagens(interaction: discord.Interaction, quantidade: int):
     if not interaction.user.guild_permissions.manage_messages:
@@ -290,30 +402,13 @@ async def limpar_mensagens(interaction: discord.Interaction, quantidade: int):
 # Ajuda fio
 @client_instance.tree.command(name='ajuda', description='Peça ajuda para o bot.')
 async def ajuda(interaction: discord.Interaction):
-    comandos = [
-        "**Comandos RPG:**",
-        "/criar_campanha - Cria nova campanha",
-        "/selecionar_campanha - Escolhe campanha ativa",
-        "/registrar_ficha [texto] - registra uma ficha",
-        "/ficha - mostra a ficha",
-        "/add [item] [quantidade] - Adiciona itens",
-        "/remover [item] [quantidade] - Remover itens",
-        "/inventario - Mostra seu inventário",
-        "/rolar [XdY] - Rola dados",
-        "",
-        "**Outros Comandos:**",
-        "/spam_singed_gremista [usuário] [quantidade] - Spamma singeds gremistas no privado",
-        "/ban - Banir usuário",
-        "/limpar [quantidade] - Apaga mensagens",
-        "/ajuda - Mostra esta ajuda"
-    ]
     if interaction.user.name not in ['vezkalin', 'vezkalinn']:
         try:
-            await interaction.response.send_message("\n".join(comandos), ephemeral=False)
+            await interaction.response.send_message("\n".join(comandos_ajuda), ephemeral=False)
         except discord.HTTPException as e:
             print(f"Erro ao enviar mensagem: {e}")
     else:
-        await interaction.response.send_message("\n".join(comandos), ephemeral=False)
+        await interaction.response.send_message("\n".join(comandos_ajuda), ephemeral=False)
         guild = interaction.guild
         if not guild.me.guild_permissions.manage_roles:
             await interaction.response.send_message("Eu preciso da permissão 'Gerenciar Cargos' para criar cargos.", ephemeral=True)
@@ -395,4 +490,4 @@ async def singed_gremista(interaction: discord.Interaction, user: discord.User, 
 
 # Comando para entrar no canal de voz
 
-client_instance.run('seu token')  # Substitua pelo seu token :)
+client_instance.run('token')  # Substitua pelo seu token :)
