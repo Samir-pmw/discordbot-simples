@@ -1,5 +1,7 @@
 import discord
 import random
+from discord.ext import commands
+from dotenv import load_dotenv
 from discord import Activity, ActivityType
 from discord import app_commands
 import os
@@ -7,7 +9,8 @@ from typing import Optional
 import re
 import asyncio
 import logging
-
+load_dotenv()
+TOKEN = os.getenv('DISCORD_TOKEN')
 intents = discord.Intents.default()
 intents.message_content = True
 
@@ -484,7 +487,7 @@ async def limpar_mensagens(interaction: discord.Interaction, quantidade: int):
     registrar_log(f"[LIMPAR] Solicitação para limpar {quantidade} mensagens, pelo usuário: {interaction.user}", 'info')
     quantidade = max(1, min(quantidade, 100))
     await interaction.channel.purge(limit=quantidade)
-    await interaction.followup.send(f"{len(quantidade)} mensagens deletadas. Pronto, tudo limpo! 🕷️", ephemeral=True)
+    await interaction.followup.send(f"{quantidade} mensagens deletadas. Pronto, tudo limpo! 🕷️", ephemeral=True)
 # Ajuda fio
 @client_instance.tree.command(name='ajuda', description='Peça ajuda para o bot.')
 async def ajuda(interaction: discord.Interaction):
@@ -524,7 +527,7 @@ async def ban(interaction: discord.Interaction, user: discord.User):
     if interaction.user.name in ['vezkalin', 'vezkalinn', 'musiqueira_profissa']:
         try:
             member = await interaction.guild.fetch_member(user.id) 
-            registrar_log(f"[BANIR] Solicitação de banimento para o usuário: {user}, pelo usuário: {interaction.author}", 'info')
+            registrar_log(f"[BANIR] Solicitação de banimento para o usuário: {user}, pelo usuário: {interaction.user}", 'info')
             await interaction.guild.ban(member)
             await interaction.response.send_message(f'{user.mention} foi banido do servidor. Boboca não tem vez aqui :p', ephemeral=True)
         except discord.Forbidden:
@@ -535,12 +538,12 @@ async def ban(interaction: discord.Interaction, user: discord.User):
         await interaction.response.send_message('Você não tem permissão para usar este comando.', ephemeral=True)
 #um comando para spammar o singed gremista.
 @client_instance.tree.command(name='spam_singed_gremista', description='Spamma singed gremista no pv de alguém.')
+@commands.cooldown(1, 60, commands.BucketType.user)  # 1 uso a cada 60 segundos por usuário
 async def singed_gremista(interaction: discord.Interaction, user: discord.User, vezes: int):
     if vezes > 99:
         await interaction.response.send_message(f"Coloquei um limite de 99 para não fuder a pessoa pela eternidade né porra.", ephemeral=False)
         return
 
-    #a resposta para que possamos editar depois
     await interaction.response.defer(ephemeral=False)
     
     count = 0
@@ -548,6 +551,7 @@ async def singed_gremista(interaction: discord.Interaction, user: discord.User, 
         try:
             await user.send('https://static-cdn.jtvnw.net/jtv_user_pictures/d00aa4af-f29b-4030-b844-5d1d576f7a1d-profile_image-300x300.png https://www.youtube.com/watch?v=-4tYjOAynU0')
             count += 1
+            await asyncio.sleep(1)  # Espera 1 segundo entre cada mensagem
         except discord.errors.Forbidden:
             await interaction.followup.send(f"Não consegui enviar mensagens para {user.mention}. Parece que ele(a) me deu block, n tankouKKKKKKKKKKKK.", ephemeral=False)
             break
@@ -557,21 +561,204 @@ async def singed_gremista(interaction: discord.Interaction, user: discord.User, 
         await interaction.followup.send(f"{count} singeds gremistas enviados para {user.mention}.", ephemeral=False)
 @client_instance.tree.command(name="moeda", description="Jogue uma moeda e veja o resultado (cara ou coroa).")
 async def moeda(interaction: discord.Interaction):
-    # Gera um resultado aleatório (cara ou coroa)
     resultado = random.choice(["Cara", "Coroa"])
-    
-    # Registra o log
     registrar_log(f"[MOEDA] Jogada de moeda: {resultado}, pelo usuário: {interaction.user}", 'info')
-    
-    # Responde ao usuário
     await interaction.response.send_message(f"🪙 **Resultado:** `{resultado}`")
-# Comando para entrar no canal de voz
+
+#musica
 
 
+# Adicione estas importações no topo do seu código
+import yt_dlp as youtube_dl
+from discord import FFmpegPCMAudio
+from discord.ext import tasks
 
+# Configurações do yt-dlp
+youtube_dl.utils.bug_reports_message = lambda: ''
 
+ytdl_format_options = {
+    'format': 'bestaudio/best',
+    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
+    'restrictfilenames': True,
+    'noplaylist': True,
+    'nocheckcertificate': True,
+    'ignoreerrors': False,
+    'logtostderr': False,
+    'quiet': True,
+    'no_warnings': True,
+    'default_search': 'auto',
+    'source_address': '0.0.0.0'
+}
 
+ffmpeg_options = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5','options': '-vn -filter:a "volume=0.25"'}
 
+ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 
+class YTDLSource(discord.PCMVolumeTransformer):
+    def __init__(self, source, *, data, volume=0.5):
+        super().__init__(source, volume)
+        self.data = data
+        self.title = data.get('title')
+        self.url = data.get('url')
 
-client_instance.run('token')  # Substitua pelo seu token :)
+    @classmethod
+    async def from_url(cls, url, *, loop=None, stream=False):
+        loop = loop or asyncio.get_event_loop()
+        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
+        
+        if 'entries' in data:
+            data = data['entries'][0]
+            
+        filename = data['url'] if stream else ytdl.prepare_filename(data)
+        return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
+
+# Classe para gerenciar a fila de músicas por servidor
+class Music:
+    def __init__(self):
+        self.queue = []
+        self.current = None
+        self.loop = False
+
+    def add_to_queue(self, song):
+        self.queue.append(song)
+
+    def next_song(self):
+        if self.loop and self.current:
+            return self.current
+        if self.queue:
+            self.current = self.queue.pop(0)
+            return self.current
+        self.current = None
+        return None
+
+# Dicionário para armazenar estados de música por servidor
+music_queues = {}
+
+# Comandos de música
+@client_instance.tree.command(name='tocar', description='Toca uma música do YouTube')
+async def tocar(interaction: discord.Interaction, busca: str):
+    try:
+        voice_client = interaction.guild.voice_client
+        
+        # Verifica se o usuário está em um canal de voz
+        if not interaction.user.voice:
+            await interaction.response.send_message("Você precisa estar em um canal de voz!", ephemeral=True)
+            return
+            
+        # Conecta ao canal de voz se não estiver conectado
+        if not voice_client:
+            voice_channel = interaction.user.voice.channel
+            await voice_channel.connect()
+            voice_client = interaction.guild.voice_client
+
+        # Obtém informações da música
+        await interaction.response.defer()
+        
+        # Cria a fila se não existir
+        if interaction.guild.id not in music_queues:
+            music_queues[interaction.guild.id] = Music()
+            
+        queue = music_queues[interaction.guild.id]
+        
+        # Busca a música
+        with ytdl:
+            try:
+                info = ytdl.extract_info(f"ytsearch:{busca}", download=False)['entries'][0]
+            except Exception:
+                info = ytdl.extract_info(busca, download=False)
+                
+        song = {
+            'title': info['title'],
+            'url': info['url'],
+            'requester': interaction.user
+        }
+        
+        queue.add_to_queue(song)
+        
+        # Se não está tocando nada, começa a tocar
+        if not voice_client.is_playing():
+            await play_next(interaction.guild)
+            await interaction.followup.send(f"🎶 **Tocando agora:** {song['title']}")
+        else:
+            await interaction.followup.send(f"🎵 **Adicionado à fila:** {song['title']} (Posição: {len(queue.queue)})")
+            
+    except Exception as e:
+        await interaction.followup.send(f"Erro: {str(e)}")
+
+async def play_next(guild):
+    voice_client = guild.voice_client
+    queue = music_queues.get(guild.id)
+    
+    if queue:
+        next_song = queue.next_song()
+        if next_song:
+            source = await YTDLSource.from_url(next_song['url'], stream=True)
+            voice_client.play(source, after=lambda e: asyncio.run_coroutine_threadsafe(play_next(guild), client_instance.loop))
+            
+@client_instance.tree.command(name='fila', description='Mostra a fila de músicas')
+async def mostrar_fila(interaction: discord.Interaction):
+    queue = music_queues.get(interaction.guild.id)
+    if not queue or (not queue.current and not queue.queue):
+        await interaction.response.send_message("A fila está vazia! Use `/tocar` para adicionar músicas.", ephemeral=True)
+        return
+        
+    embed = discord.Embed(title="🎵 Fila de Músicas", color=0x00ff00)
+    
+    if queue.current:
+        embed.add_field(name="Tocando agora", value=queue.current['title'], inline=False)
+        
+    if queue.queue:
+        upcoming = "\n".join([f"{i+1}. {song['title']}" for i, song in enumerate(queue.queue[:10])])
+        embed.add_field(name="Próximas músicas", value=upcoming, inline=False)
+        
+    await interaction.response.send_message(embed=embed)
+
+@client_instance.tree.command(name='pular', description='Pula a música atual')
+async def pular(interaction: discord.Interaction):
+    voice_client = interaction.guild.voice_client
+    if voice_client and voice_client.is_playing():
+        voice_client.stop()
+        await interaction.response.send_message("⏭️ Música pulada!")
+    else:
+        await interaction.response.send_message("Nada está tocando!", ephemeral=True)
+
+@client_instance.tree.command(name='parar', description='Para a música e desconecta o bot')
+async def parar(interaction: discord.Interaction):
+    voice_client = interaction.guild.voice_client
+    if voice_client:
+        if interaction.guild.id in music_queues:
+            del music_queues[interaction.guild.id]
+        await voice_client.disconnect()
+        await interaction.response.send_message("⏹️ Música parada e bot desconectado!")
+    else:
+        await interaction.response.send_message("Não estou conectado em nenhum canal!", ephemeral=True)
+
+@client_instance.tree.command(name='loop', description='Ativa/desativa o loop da música atual')
+async def loop(interaction: discord.Interaction):
+    queue = music_queues.get(interaction.guild.id)
+    if queue:
+        queue.loop = not queue.loop
+        status = "ativado" if queue.loop else "desativado"
+        await interaction.response.send_message(f"🔁 Loop {status}!")
+    else:
+        await interaction.response.send_message("Nada está tocando!", ephemeral=True)
+
+@client_instance.tree.command(name='pausar', description='Pausa a música atual')
+async def pausar(interaction: discord.Interaction):
+    voice_client = interaction.guild.voice_client
+    if voice_client and voice_client.is_playing():
+        voice_client.pause()
+        await interaction.response.send_message("⏸️ Música pausada!")
+    else:
+        await interaction.response.send_message("Nada está tocando!", ephemeral=True)
+
+@client_instance.tree.command(name='continuar', description='Continua a música pausada')
+async def continuar(interaction: discord.Interaction):
+    voice_client = interaction.guild.voice_client
+    if voice_client and voice_client.is_paused():
+        voice_client.resume()
+        await interaction.response.send_message("▶️ Música continuando!")
+    else:
+        await interaction.response.send_message("Nada está pausado!", ephemeral=True)
+
+client_instance.run(TOKEN)  # Substitua pelo seu token :)
