@@ -134,6 +134,10 @@ def registrar_log(mensagem: str, nivel: str = 'info'):
         logging.error(mensagem)
     else:
         logging.info(mensagem)  # Padrão para 'info' se o nível não for reconhecido
+async def send_temp_message(channel, content, delete_after=3):
+    msg = await channel.send(content)
+    await asyncio.sleep(delete_after)
+    await msg.delete()
 
 async def processar_rolagem(dados: str, interaction=None, message=None):
     try:
@@ -628,7 +632,7 @@ async def tocar(interaction: discord.Interaction, url: str):
     await interaction.response.defer()
     
     if not interaction.user.voice:
-        await interaction.followup.send("Você precisa estar em um canal de voz!", ephemeral=True)
+        await interaction.followup.send(f"🎶 Adicionado à fila: **{player.title}**", delete_after=3) 
         return
 
     guild_id = interaction.guild.id
@@ -654,7 +658,7 @@ async def tocar(interaction: discord.Interaction, url: str):
     if not voice_client.is_playing():
         await play_next(guild_id, interaction.channel)
     
-    await interaction.followup.send(f"🎶 Adicionado à fila: **{player.title}**")
+    await interaction.followup.send(f"🎶 Adicionado à fila: **{player.title}**", delete_after=3) 
 
 @client_instance.tree.command(name='parar', description='Para a música e limpa a fila')
 async def parar(interaction: discord.Interaction):
@@ -667,7 +671,7 @@ async def parar(interaction: discord.Interaction):
             client_instance.queues[guild_id]['queue'].clear()
             client_instance.queues[guild_id]['loop'] = False
         await voice_client.disconnect()
-        await interaction.response.send_message("⏹️ Música parada e fila limpa!")
+        await interaction.response.send_message("⏹️ Música parada e fila limpa!", delete_after=3)
     else:
         await interaction.response.send_message("Não estou tocando nada!", ephemeral=True)
 
@@ -744,19 +748,27 @@ async def on_reaction_add(reaction, user):
     
     elif emoji == '⏹️':
         if voice_client:
-            await parar(reaction.message.channel.guild)
-            await reaction.message.channel.send("⏹️ Música parada por um usuário!")
+        # Deleta a mensagem de controle se existir
+            if guild_id in client_instance.queues and client_instance.queues[guild_id]['control_message']:
+                try:
+                    await client_instance.queues[guild_id]['control_message'].delete()
+                except:
+                    pass
+                client_instance.queues[guild_id]['control_message'] = None
+        
+        await parar(reaction.message.channel.guild)
+        await send_temp_message(reaction.message.channel, "⏹️ Música parada por um usuário!")
     
     elif emoji == '⏮️':
         if voice_client and client_instance.current.get(guild_id):
             queue['queue'].insert(0, client_instance.current[guild_id])
             voice_client.stop()
-            await reaction.message.channel.send("⏮️ Voltando para a música anterior!")
+            await send_temp_message(reaction.message.channel, "⏮️ Voltando para a música anterior!")
     
     elif emoji == '🔁':
         queue['loop'] = not queue['loop']
         status = "ativado" if queue['loop'] else "desativado"
-        await reaction.message.channel.send(f"🔁 Loop {status}!")
+        await send_temp_message(reaction.message.channel, f"🔁 Loop {status}!")
 
 async def parar(guild):
     voice_client = guild.voice_client
