@@ -87,7 +87,6 @@ class Client(discord.Client):
         self.synced = False
         self.queues = {}  # Adicione esta linha
         self.current = {}  # E esta linha
-        self.loop = asyncio.get_event_loop()  # Adicione esta linha também
 
     async def on_ready(self):
         await self.wait_until_ready()
@@ -138,7 +137,15 @@ async def send_temp_message(channel, content, delete_after=3):
     msg = await channel.send(content)
     await asyncio.sleep(delete_after)
     await msg.delete()
-
+async def send_temp_followup(interaction: discord.Interaction, content: str, delete_after: int = 3):
+    msg = await interaction.followup.send(content, ephemeral=False)
+    await asyncio.sleep(delete_after)
+    try:
+        await msg.delete()
+    except discord.NotFound:
+        pass
+    except discord.Forbidden:
+        print("Sem permissão para deletar a mensagem.")
 async def processar_rolagem(dados: str, interaction=None, message=None):
     try:
         # Verifica se a entrada contém pelo menos uma rolagem de dados (algo como "1d20", "2d6", etc.)
@@ -592,10 +599,7 @@ ytdl_format_options = {
     'source_address': '0.0.0.0'
 }
 
-ffmpeg_options = {
-    'options': '-vn',
-    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'
-}
+ffmpeg_options = {'options': '-vn','before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'}
 
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 
@@ -617,51 +621,53 @@ class YTDLSource(discord.PCMVolumeTransformer):
         filename = data['url'] if stream else ytdl.prepare_filename(data)
         return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
 
-# Adicione na classe Client
-class Client(discord.Client):
-    def __init__(self):
-        super().__init__(intents=intents)
-        self.tree = app_commands.CommandTree(self)
-        self.synced = False
-        self.queues = {}  # {guild_id: {'queue': [], 'loop': False, 'control_message': None}}
-        self.current = {}  # {guild_id: current_song}
-
 # Comandos de música
 @client_instance.tree.command(name='tocar', description='Toca uma música do YouTube')
 async def tocar(interaction: discord.Interaction, url: str):
-    await interaction.response.defer()
+    # 1. Defer a interação para evitar timeout
+    await interaction.response.defer(ephemeral=False, thinking=True)
     
+    # 2. Verifica se o usuário está em um canal de voz
     if not interaction.user.voice:
-        await interaction.followup.send(f"🎶 Adicionado à fila: **{player.title}**", delete_after=3) 
+        await send_temp_followup(interaction, "Você precisa estar em um canal de voz!")
         return
 
     guild_id = interaction.guild.id
     voice_client = interaction.guild.voice_client
 
+    # 3. Conecta ao canal de voz se não estiver conectado
     if not voice_client:
-        voice_client = await interaction.user.voice.channel.connect()
-    
-    # Adiciona música à fila
+        try:
+            voice_client = await interaction.user.voice.channel.connect()
+        except discord.ClientException as e:
+            await send_temp_followup(interaction, f"Erro ao conectar no canal de voz: {str(e)}")
+            return
+
+    # 4. Inicializa a fila se não existir
     if guild_id not in client_instance.queues:
         client_instance.queues[guild_id] = {'queue': [], 'loop': False, 'control_message': None}
-    
+
     try:
+        # 5. Carrega a música
         player = await YTDLSource.from_url(url, loop=client_instance.loop, stream=True)
         client_instance.queues[guild_id]['queue'].append(player)
+        
+        # 6. Atualiza a mensagem de controle
+        await update_control_message(guild_id, interaction.channel)
+        
+        # 7. Se não estiver tocando nada, começa a reprodução
+        if not voice_client.is_playing():
+            await play_next(guild_id, interaction.channel)
+        
+        # 8. Responde ao usuário e finaliza a interação
+        await send_temp_followup(interaction, f"🎶 Adicionado à fila: **{player.title}**")
+    
     except Exception as e:
-        await interaction.followup.send(f"Erro ao carregar música: {str(e)}")
-        return
-
-    # Atualiza mensagem de controle
-    await update_control_message(guild_id, interaction.channel)
-    
-    if not voice_client.is_playing():
-        await play_next(guild_id, interaction.channel)
-    
-    await interaction.followup.send(f"🎶 Adicionado à fila: **{player.title}**", delete_after=3) 
+        # 9. Trata erros e envia feedback
+        await send_temp_followup(interaction, f"❌ Erro ao carregar a música: {str(e)}")
 
 @client_instance.tree.command(name='parar', description='Para a música e limpa a fila')
-async def parar(interaction: discord.Interaction):
+async def parar_musica(interaction: discord.Interaction):
     guild_id = interaction.guild.id
     voice_client = interaction.guild.voice_client
     
@@ -756,7 +762,7 @@ async def on_reaction_add(reaction, user):
                     pass
                 client_instance.queues[guild_id]['control_message'] = None
         
-        await parar(reaction.message.channel.guild)
+        await parar_musica(reaction.message.channel.guild)
         await send_temp_message(reaction.message.channel, "⏹️ Música parada por um usuário!")
     
     elif emoji == '⏮️':
@@ -770,7 +776,7 @@ async def on_reaction_add(reaction, user):
         status = "ativado" if queue['loop'] else "desativado"
         await send_temp_message(reaction.message.channel, f"🔁 Loop {status}!")
 
-async def parar(guild):
+async def parar_musica(guild):
     voice_client = guild.voice_client
     if voice_client:
         voice_client.stop()
@@ -789,7 +795,7 @@ async def on_voice_state_update(member, before, after):
     voice_client = member.guild.voice_client
     
     if voice_client and len(voice_client.channel.members) == 1:
-        await parar(member.guild)
+        await parar_musica(member.guild)
         if guild_id in client_instance.queues:
             client_instance.queues[guild_id]['control_message'] = None
 
