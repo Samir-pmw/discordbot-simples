@@ -15,15 +15,18 @@ import time
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
-# Credenciais do Spotify
-client_id = 'f1a5c5e2c142416cb55b37869a00a3f4'
-client_secret = '250b9aa1c40548f38342dbfd018fbb2f'
+
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 TOKEN_OPENAI = os.getenv('OPENAI_TOKEN')
+TOKEN_SPOTIFY = os.getenv('SPOTIFY_TOKEN')
 intents = discord.Intents.default()
 intents.message_content = True
+
+# Credenciais do Spotify
+client_id = 'f1a5c5e2c142416cb55b37869a00a3f4'
+client_secret = TOKEN_SPOTIFY
 
 logging.basicConfig(
     filename='C:/Users/Vezkalin/Desktop/bot_logs',
@@ -1311,5 +1314,7 @@ async def check_controller_position():
                     break
         except Exception as e:
             print(f"Erro ao verificar histórico do chat: {e}")
+
+
 
 client.run(TOKEN)
