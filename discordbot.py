@@ -14,9 +14,6 @@ from discord.ext import commands, tasks
 import time
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
-
-
-
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 TOKEN_OPENAI = os.getenv('OPENAI_TOKEN')
@@ -89,7 +86,6 @@ musicas_atividade = [
     "🎵 505 - Arctic Monkeys",
     "🎵 telepatía - Kali Uchis"
 ]
-
 atividades = [
     {"name": f"{musicas_atividade[0]}", "type": ActivityType.listening},
     {"name": "Hackeando sua mãe. 🕷️", "type": ActivityType.competing},
@@ -97,7 +93,6 @@ atividades = [
     {"name": "Rolando dados por nenhuma razão, enquanto joga e assiste Subway Surfers 🎲", "type": ActivityType.playing},
     {"name": "Puta com a segração de uma parcela negligenciada da sociedade na piramide socioeconômica nacional. 💣", "type": ActivityType.competing}
 ]
-
 gifs_peni_parker = [
     'https://media1.tenor.com/m/o8Jr5LwAGX0AAAAd/peni-parker-angry.gif',
     'https://media1.tenor.com/m/seZp-sCxTrgAAAAd/peni-parker-spiderverse.gif',
@@ -133,18 +128,16 @@ comandos_ajuda = [
     "/moeda - realiza um cara ou coroa",
     "\n**Comandos de Música:**",
     "/tocar [url] - Adiciona uma música à fila e toca",
+    "/parar - Para a música e limpa a fila e é uma ferramenta chave caso o bot esteja travado",
     "\n**Outros Comandos:**",
     "/spam_singed_gremista [usuário] [quantidade] - Spamma singeds gremistas no privado",
     "/ban - Banir usuário",
-    "/limpar [quantidade] - Apaga mensagens",
+    "/limpar [quantidade] - Apaga mensagens(limites de 1 a 300)",
     "/ajuda - Mostra esta ajuda",
     "\n**Comandos Passivos:**",
     'xDy - não precisa da "/" para funcionar.',
     "\nQuer me convidar para o seu servidor? [Clique aqui.](https://discord.com/oauth2/authorize?client_id=1266937657699602432&permissions=8&integration_type=0&scope=applications.commands+bot)"
 ]
-
-# Lista de xingamentos (palavrões) para detectar
-
 SAUDACOES = [
     "oi", "olá", "e aí", "eae", "tudo bem",
     "bom dia", "boa tarde", "boa noite", "fala aí", "opa",
@@ -171,7 +164,6 @@ respostas_saudacao = [
     "Oi! Tô aqui, só tentando não me distrair com mais uma série nova.",
     "E aí, já se perdeu no TikTok hoje?"
 ]
-
 XINGAMENTOS = [
     "vadia", "puta", "vagaba", "cadela", "piranha", "galinha",
     "biscate", "safada", "vagabunda", "prostituta", "arrombada",
@@ -196,12 +188,9 @@ XINGAMENTOS = [
     "falsa cínica", "cínica hipócrita", "hipócrita mesquinha", "mesquinha egoísta", "egoísta trouxa",
     "lerda tapada", "boba lesada", "tapada burra", "lerdaça idiota", "otária completa"
 ]
-
 PERSONALIDADE_PENI = """Você é Peni Parker, uma jovem inteligente e energética do universo do Homem-Aranha. 
 Você tem uma personalidade animada, fala de forma descontraída e usa algumas gírias tecnológicas. 
 Você pilota o robô SP//dr e adora resolver problemas com tecnologia. Responda como Peni Parker."""
-
-# Lista de respostas automáticas
 RESPOSTAS = [
     "Vai se foder, com que você acha que está falando?",
     "Cala essa boca!",
@@ -217,14 +206,10 @@ RESPOSTAS = [
     "Fala mais uma e eu vazo teu ip, otário",
     f"{random.choice(['192.168.0.0','172.31.255.255','192.168.255.255', '10.255.255.255', '10.0.0.9'])}, gente, olha o ip dele."
 ]
-
-
 gifs_anime = ["https://media1.tenor.com/m/XNRRNuKYxHwAAAAd/right-now-it%E2%80%99s-just-that-everything-feels-right-sorry-amanai.gif",
               "https://tenor.com/view/cellbit-puto-gif-23527036",
               "https://tenor.com/view/shuumatsu-no-valkyrie-nikola-tesla-record-of-ragnarok-enygma-gif-12505791092849673790",
               "https://tenor.com/view/o-gif-6887207115184691665"]
-
-
 class Client(discord.Client):
     def __init__(self):
         super().__init__(intents=intents)
@@ -274,13 +259,9 @@ class Client(discord.Client):
         else:
             registrar_log(f'Não achei um canal padrão no servidor "{guild.name}";', 'error')
 
-
 import openai
 openai.api_key = TOKEN_OPENAI
 client_instance = Client()
-
-
-
 # Expressão regular para capturar múltiplas rolagens e operações (incluindo termos como +2d20 ou -3d6)
 dados_regex = re.compile(r'([+-]?\d+d\d+)|([+-]?\d+)')
 # Função para obter resposta da OpenAI
@@ -792,6 +773,9 @@ async def moeda(interaction: discord.Interaction):
     resultado = random.choice(["Cara", "Coroa"])
     registrar_log(f"[MOEDA] Jogada de moeda: {resultado}, pelo usuário: {interaction.user}", 'info')
     await interaction.response.send_message(f"🪙 **Resultado:** `{resultado}`")
+
+#bot de música
+
 
 # Configurações iniciais
 client = client_instance
@@ -1315,6 +1299,10 @@ async def check_controller_position():
         except Exception as e:
             print(f"Erro ao verificar histórico do chat: {e}")
 
-
-
 client.run(TOKEN)
+
+# __   __   ______     __  __    
+#/\ \ / /  /\___  \   /\ \/ /    
+#\ \ \'/   \/_/  /__  \ \  _"-.  
+# \ \__|     /\_____\  \ \_\ \_\ 
+#  \/_/      \/_____/   \/_/\/_/ 
