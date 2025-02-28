@@ -11,9 +11,17 @@ import asyncio
 import logging
 import yt_dlp as youtube_dl
 from discord.ext import commands, tasks
+import time
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+
+# Credenciais do Spotify
+client_id = 'f1a5c5e2c142416cb55b37869a00a3f4'
+client_secret = '250b9aa1c40548f38342dbfd018fbb2f'
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
+TOKEN_OPENAI = os.getenv('OPENAI_TOKEN')
 intents = discord.Intents.default()
 intents.message_content = True
 
@@ -26,13 +34,67 @@ logging.basicConfig(
 
 # Lista de variáveis da Peni Parker
 
+musicas_atividade = [
+    "🎵 I Like The Way You Kiss Me - Artemas",
+    "🎵 Do I Wanna Know? - Arctic Monkeys",
+    "🎵 Olhos Carmesim - Veigh",
+    "🎵 Travelers - TWRP",
+    "🎵 After Dark - Mr. Kitty",
+    "🎵 Bernadette - IAMX",
+    "🎵 Travelers - Andrew Prahlow",
+    "🎵 blue - yung kai",
+    "🎵 Cansaço - Alec'",
+    "🎵 Gatuno - Alec'",
+    "🎵 Olhos Carmesim - Alec'",
+    "🎵 Sou Eu de Novo - Alec'",
+    "🎵 Cativa - Alec'",
+    "🎵 Divagando - Alec'",
+    "🎵 O Estranho Mundo De Alec' - Alec'",
+    "🎵 Morgana - kamaitachi",
+    "🎵 Imprevisto - Yago Oproprio",
+    "🎵 Meio a Meio II - Thegust Mc's",
+    "🎵 Tokyo - Lil Zé",
+    "🎵 i like the way you kiss me - Artemas",
+    "🎵 Anti Herói - Link do Zap",
+    "🎵 Causa'dor - luqeta",
+    "🎵 Trancado na Mente - Uxie Kid",
+    "🎵 eu sinto falta de 2017 - yurichan",
+    "🎵 PATO! - Yun Wob",
+    "🎵 JAZZ&CIGARRO - EF",
+    "🎵 WTF 2 - Ugovhb",
+    "🎵 We Fell Apart - ANGUISH",
+    "🎵 After Dark - Mr.Kitty",
+    "🎵 PuppyCat Lullaby - Will Wiesenfeld",
+    "🎵 Theme - From 'Inspector Gadget' - London Music Works",
+    "🎵 Blue Room (Kz-Version) - Tunç Çakır",
+    "🎵 Yasashi - CXSPER",
+    "🎵 Waiting to Fly - YUNG LIXO",
+    "🎵 Sucesso FM - YUNG LIXO",
+    "🎵 Rumo à Vitória - YUNG LIXO",
+    "🎵 hide n seek - Ethan Bortnick",
+    "🎵 I'm Still Standing - Remastered - Elton John",
+    "🎵 Feed the Machine - Poor Man's Poison",
+    "🎵 TIRED OF PROBLEMS - SLOWED - NUEKI",
+    "🎵 Daylight - David Kushner",
+    "🎵 eyes blue or brown, can't remember - untrusted",
+    "🎵 〒160-0014 Tokyo '82 - 猫 シ Corp.",
+    "🎵 Prefiro Morrer - YUNG LIXO",
+    "🎵 Bernadette - IAMX",
+    "🎵 Do I Wanna Know? - Arctic Monkeys",
+    "🎵 Rock do Roça Funk - MAGOTH TTK",
+    "🎵 Vida de Estudante - wike",
+    "🎵 505 - Arctic Monkeys",
+    "🎵 telepatía - Kali Uchis"
+]
+
 atividades = [
+    {"name": f"{musicas_atividade[0]}", "type": ActivityType.listening},
     {"name": "Hackeando sua mãe. 🕷️", "type": ActivityType.competing},
-    {"name": 'i like the way you kiss me 🎵', "type": ActivityType.listening},
     {"name": "RPG do Cellbit ☝️🤓", "type": ActivityType.watching},
     {"name": "Rolando dados por nenhuma razão, enquanto joga e assiste Subway Surfers 🎲", "type": ActivityType.playing},
-    {"name": "Puta com a segração socioeconômica nacional. 💣", "type": ActivityType.competing}
+    {"name": "Puta com a segração de uma parcela negligenciada da sociedade na piramide socioeconômica nacional. 💣", "type": ActivityType.competing}
 ]
+
 gifs_peni_parker = [
     'https://media1.tenor.com/m/o8Jr5LwAGX0AAAAd/peni-parker-angry.gif',
     'https://media1.tenor.com/m/seZp-sCxTrgAAAAd/peni-parker-spiderverse.gif',
@@ -46,14 +108,14 @@ gifs_um_natural = ['https://media1.tenor.com/m/w1pO5WeyA6AAAAAd/peni-parker-spid
 respostas_peni_parker = [
     "Cê tá de brincadeira, né? Acima de 100d1000? Quer travar o bot ou criar um buraco negro no meu PC? Vai caçar o que fazer, cara!",
     "Acima de 100d1000? Sério? Tu quer que eu exploda? Vai rolar isso na mão, seu maluco!",
-    "Ah, vai se tratar! Acima de 100d1000? Tu acha que eu sou a NASA pra calcular isso? Vai rolar essa porra no caralho filha da puta, não fode porra",
+    "Ah, vai se tratar! Acima de 100d1000? Vai rolar essa porra no caralho filha da puta, não fode porra",
     "Acima de 100d1000? Tu tá de sacanagem, né? Nem o Doutor Estranho conseguiria lidar com essa maluquice! Para de ser doido!",
-    "Cê tá achando que isso aqui é o Multiverso? Acima de 100d1000? Vai rolar isso no papel, vagabundo!",
-    "Acima de 100d1000? Tu quer que eu chame o Homem-Aranha pra te dar um susto? Para de ser otário!",
-    "Ah, vai catar coquinho! Acima de 100d1000? Nem o Tony Stark com todo o dinheiro dele ia aguentar essa palhaçada!",
-    "Acima de 100d1000? Tu tá achando que isso aqui é o Quartel General dos Vingadores? Para de ser doido, cara!",
-    "Ah, vai arrumar um emprego! Acima de 100d1000? Tu quer travar o bot ou conquistar o mundo? Para de ser besta!",
-    "Acima de 100d1000? Tu tá achando que eu sou o Visão pra calcular isso? Vai jogar Uno, seu doido!"
+    "Cê tá achando que isso aqui é o Multiverso? Acima de 100d1000? Vai rolar isso sozinho, vagabundo!",
+    "Acima de 100d1000? Tu quer que eu chame o Homem-Aranha pra te dar um susto? otário!",
+    "Ah, vai catar coquinho! Acima de 100d1000? Nem o Tony Stark rodando o bot na Mark LXXXV dele ia aguentar essa palhaçada!",
+    "Acima de 100d1000? AAAAAAAAAAAAAAAAAAAAA, vou ficar maluca porra",
+    "Ah, vai arrumar um emprego! Acima de 100d1000? Tu quer travar o bot? Para de ser besta!",
+    "Acima de 100d1000? mano?!"
 ]
 comandos_ajuda = [
     "**Comandos RPG:**",
@@ -77,6 +139,82 @@ comandos_ajuda = [
     'xDy - não precisa da "/" para funcionar.',
     "\nQuer me convidar para o seu servidor? [Clique aqui.](https://discord.com/oauth2/authorize?client_id=1266937657699602432&permissions=8&integration_type=0&scope=applications.commands+bot)"
 ]
+
+# Lista de xingamentos (palavrões) para detectar
+
+SAUDACOES = [
+    "oi", "olá", "e aí", "eae", "tudo bem",
+    "bom dia", "boa tarde", "boa noite", "fala aí", "opa",
+    "ei", "alô", "saudações", "hey", "hello",
+    "tranquilo", "firmeza", "beleza", "como vai", "como está",
+    "tudo certo", "tudo jóia", "tudo tranquilo", "tudo em cima", "tudo bom",
+    "como é", "qual é", "que tal", "tá bom", "tá certo",
+    "tá joia", "tá tranquilo", "tá firme", "tá em cima", "tá tudo",
+    "tá beleza", "tá suave", "tá sussa", "tá de boa", "tá legal"
+]
+respostas_saudacao = [
+    "E aí, tudo bem? Bora jogar alguma coisa ou só vai ficar aí?",
+    "Oi! Já viu alguma coisa interessante na internet hoje?",
+    "E aí, já assistiu algo bom ultimamente? Tô precisando de recomendações.",
+    "Fala aí! Já tomou seu café hoje ou tá vivendo de pura energia de procrastinação?",
+    "Oi, tudo bem? Tudo bem é relativo quando você passa o dia inteiro no celular, né?",
+    "E aí, beleza? Beleza é o caramba, tô aqui tentando sobreviver à rotina.",
+    "Oi! Tô aqui, só procrastinando e evitando a vida adulta, e você?",
+    "E aí, já fez algo produtivo hoje ou tá no modo 'deixar pra depois'?",
+    "Oi! Tô aqui, só tentando não cair no buraco negro das redes sociais de novo.",
+    "Oi! Tô aqui, só tentando lembrar o que eu ia fazer hoje...",
+    "E aí, já viu alguma coisa que te fez rir hoje? Preciso de uma desculpa pra sorrir.",
+    "Oi! Tô aqui, só tentando não pensar na pilha de coisas que tenho pra fazer.",
+    "Oi! Tô aqui, só tentando não me distrair com mais uma série nova.",
+    "E aí, já se perdeu no TikTok hoje?"
+]
+
+XINGAMENTOS = [
+    "vadia", "puta", "vagaba", "cadela", "piranha", "galinha",
+    "biscate", "safada", "vagabunda", "prostituta", "arrombada",
+    "traste", "lixo", "baranga", "feiosa", "gorda",
+    "nojenta", "fedida", "burra", "idiota", "chata",
+    "miserável", "trouxa", "ridícula", "patética", "inútil",
+    "fraca", "bosta", "cretina", "desgraçada", "maluca",
+    "carrapato", "sanguessuga", "parasita", "escrota", "porca",
+    "imunda", "suja", "podre", "depravada", "tarada",
+    "louca", "desequilibrada", "histérica", "fofoqueira", "intriguenta",
+    "falsa", "cínica", "hipócrita", "mesquinha", "egoísta",
+    "lerda", "boba", "tapada", "lerdaça", "otária",
+    "puta barata", "vadia suja", "cadela maldita", "piranha fedida", "galinha choca",
+    "biscate nojenta", "safada burra", "vagabunda imunda", "prostituta baranga", "arrombada idiota",
+    "traste inútil", "lixo humano", "baranga gorda", "feiosa ridícula", "gorda sebosa",
+    "nojenta asquerosa", "fedida podre", "burra completa", "idiota total", "chata insuportável",
+    "miserável fracassada", "trouxa otária", "ridícula patética", "patética perdedora", "inútil vagabunda",
+    "fraca covarde", "bosta ambulante", "cretina estúpida", "desgraçada maldita", "maluca varrida",
+    "carrapato chato", "sanguessuga nojenta", "parasita imundo", "escrota safada", "porca suja",
+    "imunda nojenta", "suja porca", "podre fedorenta", "depravada louca", "tarada doente",
+    "louca descontrolada", "desequilibrada histérica", "histérica insana", "fofoqueira maldita", "intriguenta falsa",
+    "falsa cínica", "cínica hipócrita", "hipócrita mesquinha", "mesquinha egoísta", "egoísta trouxa",
+    "lerda tapada", "boba lesada", "tapada burra", "lerdaça idiota", "otária completa"
+]
+
+PERSONALIDADE_PENI = """Você é Peni Parker, uma jovem inteligente e energética do universo do Homem-Aranha. 
+Você tem uma personalidade animada, fala de forma descontraída e usa algumas gírias tecnológicas. 
+Você pilota o robô SP//dr e adora resolver problemas com tecnologia. Responda como Peni Parker."""
+
+# Lista de respostas automáticas
+RESPOSTAS = [
+    "Vai se foder, com que você acha que está falando?",
+    "Cala essa boca!",
+    "Seu merda. Sucumba.",
+    "Eu vou fazer um Evangelion 2 na sua realidade.",
+    "Vai tomar no cu, ninguém te suporta mais!",
+    "Seu lixo, eu te quebro se abrir essa boca de novo!",
+    "Não me xinga que eu te arrebento, inútil!",
+    "Seu nojento, sai da minha frente ou te chuto!",
+    "Vai lavar essa boca podre, seu sujo do caralho!",
+    "Seu ridículo, eu te esgano se continuar falando!",
+    "Seu escroto, eu te arranco a língua se não parar!",
+    "Fala mais uma e eu vazo teu ip, otário",
+    f"{random.choice(['192.168.0.0','172.31.255.255','192.168.255.255', '10.255.255.255', '10.0.0.9'])}, gente, olha o ip dele."
+]
+
 
 gifs_anime = ["https://media1.tenor.com/m/XNRRNuKYxHwAAAAd/right-now-it%E2%80%99s-just-that-everything-feels-right-sorry-amanai.gif",
               "https://tenor.com/view/cellbit-puto-gif-23527036",
@@ -105,15 +243,25 @@ class Client(discord.Client):
             self.synced = True
         print(f"Entramos como {self.user}.")
         self.loop.create_task(self.mudar_atividade_periodicamente())
+        check_controller_position.start()
 
     async def mudar_atividade_periodicamente(self):
         while not self.is_closed():
             for atividade in atividades:
-                activity = Activity(name=atividade["name"], type=atividade["type"])
-                await self.change_presence(activity=activity)
-                print(f"Atividade alterada para: {atividade['name']}")
-                registrar_log(f"Atividade alterada para: {atividade['name']}")
-                await asyncio.sleep(7200)
+                if atividade["type"] == ActivityType.listening:
+                    for musica in musicas_atividade:
+                        activity = Activity(name=musica, type=ActivityType.listening)
+                        await self.change_presence(activity=activity)
+                        print(f"Atividade alterada para: {musica}")
+                        registrar_log(f"Atividade alterada para: {musica}")
+                        await asyncio.sleep(120)
+                else:
+                    # Para outras atividades, muda a atividade normalmente
+                    activity = Activity(name=atividade["name"], type=atividade["type"])
+                    await self.change_presence(activity=activity)
+                    print(f"Atividade alterada para: {atividade['name']}")
+                    registrar_log(f"Atividade alterada para: {atividade['name']}")
+                    await asyncio.sleep(7200)
 
     async def on_guild_join(self, guild):
         canal = guild.system_channel
@@ -123,12 +271,30 @@ class Client(discord.Client):
         else:
             registrar_log(f'Não achei um canal padrão no servidor "{guild.name}";', 'error')
 
+
+import openai
+openai.api_key = TOKEN_OPENAI
 client_instance = Client()
 
 
 
 # Expressão regular para capturar múltiplas rolagens e operações (incluindo termos como +2d20 ou -3d6)
 dados_regex = re.compile(r'([+-]?\d+d\d+)|([+-]?\d+)')
+# Função para obter resposta da OpenAI
+
+def obter_resposta(entrada):
+    try:
+        resposta = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": PERSONALIDADE_PENI},
+                {"role": "user", "content": entrada}
+            ]
+        )
+        return resposta["choices"][0]["message"]["content"]
+    except Exception as e:
+        return random.choice(['Estou sem bateria social -.-', 'Tô com soninho, me deixa dormir', 'Não tô afim de falar com você.', 'Me deixa quieta...','Zzzzzzzzzzzzzzzzzzzzzzzzzz'])
+
 def registrar_log(mensagem: str, nivel: str = 'info'):
     if nivel.lower() == 'info':
         logging.info(mensagem)
@@ -228,33 +394,25 @@ async def processar_rolagem(dados: str, interaction=None, message=None):
         resposta = "🎲 **Resultado das rolagens:**\n"
         resposta += "".join(detalhes) + f"\n**Total:** ``{total}``"
         
-        # Verifica se houve um natural 20
+        # Verifica se houve um natural 20 ou um natural 1
         if natural_20:
             resposta += "\n\n🎉 **VINTE NATURAL!** 🎉"
-            if interaction:
-                await interaction.response.send_message(resposta)
-                await interaction.followup.send(random.choice(gifs_anime))
-            elif message:
-                await message.reply(resposta)
-                await message.channel.send(random.choice(gifs_anime))
-        else:
-            if interaction:
-                await interaction.response.send_message(resposta, ephemeral=False)
-            elif message:
-                await message.reply(resposta)
         if natural_1:
-            resposta += "\n\n**UM NATURALKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK, lastimável**"
-            if interaction:
-                await interaction.response.send_message(resposta)
+            resposta += "\n\n**UM NATURALKKKKKKKKKKKKKKKKKKKK, lastimável**"
+
+        # Envia a resposta
+        if interaction:
+            await interaction.response.send_message(resposta)
+            if natural_20:
+                await interaction.followup.send(random.choice(gifs_anime))
+            elif natural_1:
                 await interaction.followup.send(random.choice(gifs_um_natural))
-            elif message:
-                await message.reply(resposta)
+        elif message:
+            await message.reply(resposta)
+            if natural_20:
+                await message.channel.send(random.choice(gifs_anime))
+            elif natural_1:
                 await message.channel.send(random.choice(gifs_um_natural))
-        else:
-            if interaction:
-                await interaction.response.send_message(resposta, ephemeral=False)
-            elif message:
-                await message.reply(resposta)
 
     except Exception as e:
         # Trata erros inesperados
@@ -323,6 +481,15 @@ def normalizar_nome_item(nome: str) -> str:
 
 
 numero_max_de_campanhas = 5
+
+@client_instance.tree.command(name="parar", description="Reinicia completamente o bot no servidor atual")
+async def parar(interaction: discord.Interaction):
+    guild = interaction.guild
+    await interaction.response.send_message("Música finalizada.", ephemeral=False, delete_after=5)
+    # Reseta completamente o estado do player
+    await reset_player(guild)
+    await disconnect_player(guild)
+    # Envia uma mensagem de confirmação
 
 @client_instance.tree.command(name='criar_campanha', description='Cria uma nova campanha.')
 async def criar_campanha(interaction: discord.Interaction, nome: str):
@@ -500,7 +667,7 @@ async def mostrar_ficha(interaction: discord.Interaction):
 async def rolar_dados(interaction: discord.Interaction, dados: str):
     await processar_rolagem(dados, interaction=interaction)
 
-# Evento on_message para detectar rolagens de dados sem o comando /rolar
+
 @client_instance.event
 async def on_message(message: discord.Message):
     # Ignora mensagens enviadas pelo próprio bot
@@ -512,6 +679,30 @@ async def on_message(message: discord.Message):
     if match:
         await processar_rolagem(message.content, message=message)
 
+    if 'duvido' in message.content.lower():
+        await message.reply("Meu p## no seu ouvido KKKKKKKKKKKKK, mentira, eu não tenho p##", mention_author=True, delete_after=3.58)
+        await message.channel.send('https://media1.tenor.com/m/E8pq18hnoKYAAAAd/peni-parker-spiderverse.gif', delete_after=3.3)
+    
+    if client.user.mentioned_in(message):
+        if any(xingamento in message.content.lower() for xingamento in XINGAMENTOS):
+            # Encontra o xingamento específico na mensagem
+            xingamento_na_frase = next(xingamento for xingamento in XINGAMENTOS if xingamento in message.content.lower())
+            # Cria a resposta com o xingamento encontrado e uma resposta aleatória
+            resposta = f"{random.choices([f'{xingamento_na_frase.title()}!? ', ''], weights=[0.35, 0.65])[0]}{random.choice(RESPOSTAS)}"
+            await message.reply(resposta, delete_after=3.58)
+            await message.channel.send(f'{random.choice(gifs_peni_parker)}', delete_after=3.3)
+            time.sleep(1.2)
+            await message.delete()
+        elif any(saudacao in message.content.lower() for saudacao in SAUDACOES):
+            saudacao_na_frase = next(saudacao for saudacao in SAUDACOES if saudacao in message.content.lower())
+            if saudacao_na_frase == "bom dia":
+                await message.reply(f"{random.choice(["Bom dia! Ou seria 'bom café'? Porque sem café, nem funciona direito.", "Bom dia.", "Bom dia, me faz um café?"])}", mention_author=True)
+            else:
+                await message.reply(f"{random.choice(respostas_saudacao)}", mention_author=True)
+        else:
+            resposta = obter_resposta(message.content)
+            await message.reply(resposta)
+
 # Comandos_ajuda de administração
 @client_instance.tree.command(name='limpar', description='Apaga mensagens (requer permissão)')
 async def limpar_mensagens(interaction: discord.Interaction, quantidade: int):
@@ -519,9 +710,9 @@ async def limpar_mensagens(interaction: discord.Interaction, quantidade: int):
         await interaction.response.send_message("Permissão necessária!", ephemeral=True)
         return
     registrar_log(f"[LIMPAR] Solicitação para limpar {quantidade} mensagens, pelo usuário: {interaction.user}", 'info')
-    quantidade = max(1, min(quantidade, 100))
+    quantidade = max(1, min(quantidade, 300))
+    await interaction.response.send_message(f"{quantidade} mensagens deletadas. Pronto, tudo limpo! 🕷️", ephemeral=True, delete_after=7)
     await interaction.channel.purge(limit=quantidade)
-    await interaction.followup.send(f"{quantidade} mensagens deletadas. Pronto, tudo limpo! 🕷️", ephemeral=True)
 # Ajuda fio
 @client_instance.tree.command(name='ajuda', description='Peça ajuda para o bot.')
 async def ajuda(interaction: discord.Interaction):
@@ -643,8 +834,200 @@ class YTDLSource(discord.PCMVolumeTransformer):
             data = data['entries'][0]
         filename = data['url'] if stream else ytdl.prepare_filename(data)
         return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
+is_processing = {}
 
-@client.tree.command(name="tocar", description="Tocar uma música")
+async def processar_playlist_spotify(interaction, url):
+    guild_id = interaction.guild.id
+    is_processing[guild_id] = True  # Indica que o bot está processando uma playlist
+
+    try:
+        musicas = buscar_musicas_spotify(url)
+        if not musicas:
+            msg = await interaction.followup.send("❌ Não foi possível buscar as músicas do Spotify.", ephemeral=True)
+            await asyncio.sleep(3)
+            await msg.delete()
+            is_processing[guild_id] = False  # Interrompe o processamento
+            return
+
+        if guild_id not in queue:
+            queue[guild_id] = []
+
+        # Toca a primeira música de forma síncrona
+        primeira_musica = musicas[0]
+        try:
+            player = await YTDLSource.from_url(primeira_musica, loop=client.loop, stream=True)
+            queue[guild_id].append({'title': player.title, 'player': player})
+            
+            # Atualiza o controlador antes de tocar a primeira música
+            await update_controller(interaction.guild)
+            
+            # Toca a primeira música
+            voice_client = interaction.guild.voice_client
+            if voice_client and not voice_client.is_playing():
+                await play_next(interaction.guild)
+        except Exception as e:
+            print(f"Erro ao tocar a primeira música: {e}")
+
+        # Adiciona o restante das músicas à fila de forma assíncrona
+        for musica in musicas[1:]:
+            # Verifica se o bot ainda está processando
+            if not is_processing.get(guild_id, False):
+                break  # Interrompe o processamento se o bot foi parado
+
+            try:
+                player = await YTDLSource.from_url(musica, loop=client.loop, stream=True)
+                queue[guild_id].append({'title': player.title, 'player': player})
+                
+                # Atualiza o controlador após adicionar cada música
+                await update_controller(interaction.guild)
+            except Exception as e:
+                print(f"Erro ao adicionar música: {e}")
+
+        msg = await interaction.followup.send(f"✅ Adicionado {len(musicas)} músicas à fila.", ephemeral=True)
+        await asyncio.sleep(3)
+        await msg.delete()
+    except Exception as e:
+        print(f"Erro ao processar playlist do Spotify: {e}")
+    finally:
+        is_processing[guild_id] = False  # Finaliza o processamento
+
+async def disconnect(guild):
+    guild_id = guild.id
+    
+    # Interrompe o processamento da playlist, se estiver ocorrendo
+    if guild_id in is_processing:
+        is_processing[guild_id] = False
+    
+    if guild_id in queue:
+        del queue[guild_id]
+    if guild_id in controllers:
+        try:
+            await controllers[guild_id].delete()
+        except:
+            pass
+        del controllers[guild_id]
+    if guild_id in now_playing:
+        del now_playing[guild_id]
+    if guild.voice_client:
+        await guild.voice_client.disconnect()
+
+async def play_next(guild):
+    if guild.id not in queue or not queue[guild.id]:
+        if guild.voice_client:
+            await guild.voice_client.disconnect()
+        return
+    
+    voice_client = guild.voice_client
+    if voice_client:
+        try:
+            current = queue[guild.id].pop(0)
+            now_playing[guild.id] = current
+            
+            # Cria uma nova instância do player para evitar conflitos
+            new_player = await YTDLSource.from_url(current['player'].url, loop=client.loop, stream=True)
+            current['player'] = new_player
+            
+            voice_client.play(new_player, after=lambda e: asyncio.run_coroutine_threadsafe(play_finished(guild), client.loop))
+            
+            # Atualiza o controlador imediatamente após começar a tocar uma nova música
+            await update_controller(guild)
+        except Exception as e:
+            print(f"Erro ao tocar próxima música: {e}")
+            await play_finished(guild)
+
+async def reset_player(guild):
+    """
+    Reseta completamente o estado do player para o servidor especificado.
+    """
+    guild_id = guild.id
+
+    # Interrompe o processamento da playlist, se estiver ocorrendo
+    if guild_id in is_processing:
+        is_processing[guild_id] = False
+
+    # Limpa a fila de músicas
+    if guild_id in queue:
+        del queue[guild_id]
+
+    # Para a reprodução atual
+    if guild.voice_client:
+        guild.voice_client.stop()
+
+    # Reseta o estado now_playing
+    if guild_id in now_playing:
+        del now_playing[guild_id]
+
+    # Deleta o controlador
+    if guild_id in controllers:
+        try:
+            await controllers[guild_id].delete()
+        except:
+            pass
+        del controllers[guild_id]
+
+    # Desconecta o bot do canal de voz
+    if guild.voice_client:
+        await guild.voice_client.disconnect()
+
+async def reset_player_state(guild):
+    """
+    Reseta o estado do player (fila, now_playing, controlador), mas não desconecta.
+    """
+    guild_id = guild.id
+
+    # Interrompe o processamento da playlist, se estiver ocorrendo
+    if guild_id in is_processing:
+        is_processing[guild_id] = False
+
+    # Limpa a fila de músicas
+    if guild_id in queue:
+        del queue[guild_id]
+
+    # Para a reprodução atual
+    if guild.voice_client:
+        guild.voice_client.stop()
+
+    # Reseta o estado now_playing
+    if guild_id in now_playing:
+        del now_playing[guild_id]
+
+    # Deleta o controlador
+    if guild_id in controllers:
+        try:
+            await controllers[guild_id].delete()
+        except:
+            pass
+        del controllers[guild_id]
+
+
+
+async def disconnect_player(guild):
+    """
+    Desconecta o bot do canal de voz e reseta o estado do player.
+    """
+    guild_id = guild.id
+
+    # Interrompe o processamento da playlist, se estiver ocorrendo
+    if guild_id in is_processing:
+        is_processing[guild_id] = False
+
+    # Limpa a fila de músicas
+    if guild_id in queue:
+        del queue[guild_id]
+
+    # Para a reprodução atual
+    if guild.voice_client:
+        guild.voice_client.stop()
+
+    # Reseta o estado now_playing
+    if guild_id in now_playing:
+        del now_playing[guild_id]
+
+    # Desconecta o bot do canal de voz
+    if guild.voice_client:
+        await guild.voice_client.disconnect()
+
+@client.tree.command(name="tocar", description="Tocar uma música ou playlist")
 async def tocar(interaction: discord.Interaction, url: str):
     voice_client = await ensure_voice(interaction)
     if not voice_client:
@@ -652,15 +1035,25 @@ async def tocar(interaction: discord.Interaction, url: str):
     
     await interaction.response.defer()
     
-    # Armazena o canal onde o comando foi usado
-    guild_id = interaction.guild.id
-    controller_channels[guild_id] = interaction.channel
+    # Define o canal do controlador como o canal onde o comando foi executado
+    controller_channels[interaction.guild.id] = interaction.channel
     
+    # Verifica se é uma URL do Spotify
+    if 'open.spotify.com' in url:
+        # Processa a playlist de forma assíncrona
+        client.loop.create_task(processar_playlist_spotify(interaction, url))
+        return
+    
+    # Se não for uma URL do Spotify, tenta tocar diretamente do YouTube
     try:
         player = await YTDLSource.from_url(url, loop=client.loop, stream=True)
     except Exception as e:
-        return await interaction.followup.send(f"Erro ao buscar música: {str(e)}", ephemeral=True, delete_after=3)
+        msg = await interaction.followup.send(f"❌ Erro ao buscar música: {str(e)}", ephemeral=True)
+        await asyncio.sleep(3)
+        await msg.delete()
+        return
     
+    guild_id = interaction.guild.id
     if guild_id not in queue:
         queue[guild_id] = []
     queue[guild_id].append({'title': player.title, 'player': player})
@@ -668,15 +1061,6 @@ async def tocar(interaction: discord.Interaction, url: str):
     msg = await interaction.followup.send(f"✅ Adicionado à fila: {player.title}")
     await asyncio.sleep(3)
     await msg.delete()
-    
-    # Remove o controlador antigo se existir em outro canal
-    old_controller = controllers.get(guild_id)
-    if old_controller and old_controller.channel != interaction.channel:
-        try:
-            await old_controller.delete()
-        except:
-            pass
-    
     await update_controller(interaction.guild)
     
     if not voice_client.is_playing():
@@ -697,6 +1081,37 @@ async def ensure_voice(interaction):
     
     last_activity[interaction.guild.id] = discord.utils.utcnow()
     return voice_client
+
+client_credentials_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
+sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+
+def buscar_musicas_spotify(url):
+    try:
+        # Verifica se é uma URL de música, playlist ou álbum
+        if 'track' in url:
+            # Busca uma única música
+            track = sp.track(url)
+            return [f"{track['name']} - {track['artists'][0]['name']}"]
+        elif 'playlist' in url:
+            # Busca todas as músicas de uma playlist
+            results = sp.playlist_tracks(url)
+            musicas = []
+            for item in results['items']:
+                track = item['track']
+                musicas.append(f"{track['name']} - {track['artists'][0]['name']}")
+            return musicas
+        elif 'album' in url:
+            # Busca todas as músicas de um álbum
+            results = sp.album_tracks(url)
+            musicas = []
+            for track in results['items']:
+                musicas.append(f"{track['name']} - {track['artists'][0]['name']}")
+            return musicas
+        else:
+            return None
+    except Exception as e:
+        print(f"Erro ao buscar músicas do Spotify: {e}")
+        return None
 
 async def play_next(guild):
     if guild.id not in queue or not queue[guild.id]:
@@ -732,6 +1147,14 @@ async def play_finished(guild):
         
         del now_playing[guild.id]
     
+    # Verifica se a fila está vazia
+    if guild.id not in queue or not queue[guild.id]:
+        # Desconecta o bot e limpa o estado do player
+        await disconnect_player(guild)
+        await reset_player(guild)
+        return
+    
+    # Toca a próxima música
     await play_next(guild)
 
 async def update_controller(guild):
@@ -761,20 +1184,30 @@ async def update_controller(guild):
         )
     
     view = ControllerView()
+    
     if controller:
         try:
             await controller.edit(embed=embed, view=view)
-        except:
+        except Exception as e:
+            print(f"Erro ao editar controlador: {e}")
             await create_new_controller(guild, embed, view, channel)
     else:
         await create_new_controller(guild, embed, view, channel)
 
 async def create_new_controller(guild, embed, view, channel):
     try:
+        # Deleta o controlador antigo, se existir
+        if guild.id in controllers:
+            try:
+                await controllers[guild.id].delete()
+            except:
+                pass
+        
+        # Envia o novo controlador no final do chat
         controller = await channel.send(embed=embed, view=view)
         controllers[guild.id] = controller
     except Exception as e:
-        print(f"Erro ao criar controlador: {e}", delete_after=3)
+        print(f"Erro ao criar controlador: {e}")
 
 class ControllerView(discord.ui.View):
     def __init__(self):
@@ -792,8 +1225,17 @@ class ControllerView(discord.ui.View):
     
     @discord.ui.button(emoji="⏹️", style=discord.ButtonStyle.grey)
     async def stop(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer()
-        await disconnect(interaction.guild)
+        guild_id = interaction.guild.id
+        
+        # Interrompe o processamento da playlist
+        if guild_id in is_processing:
+            is_processing[guild_id] = False
+        
+        # Reseta completamente o estado do player
+        await reset_player(interaction.guild)
+        
+        # Envia uma mensagem de confirmação
+        await interaction.response.send_message("⏹️ Player parado e reiniciado com sucesso.", ephemeral=True, delete_after=5)
     
     @discord.ui.button(emoji="⏭️", style=discord.ButtonStyle.grey)
     async def skip(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -810,21 +1252,7 @@ class ControllerView(discord.ui.View):
         
         # Atualiza o controlador imediatamente
         await update_controller(interaction.guild)
-        await interaction.response.send_message(f"🔁 Modo loop: {new_state}", ephemeral=True, delete_after=3)
-
-async def disconnect(guild):
-    if guild.id in queue:
-        del queue[guild.id]
-    if guild.id in controllers:
-        try:
-            await controllers[guild.id].delete()
-        except:
-            pass
-        del controllers[guild.id]
-    if guild.id in now_playing:
-        del now_playing[guild.id]
-    if guild.voice_client:
-        await guild.voice_client.disconnect()
+        await interaction.response.send_message(f"🔁 Modo loop: {new_state}", ephemeral=True, delete_after=5)
 
 @tasks.loop(minutes=1)  # Verifica a cada 1 minuto
 async def check_inactivity():
@@ -859,10 +1287,29 @@ async def check_inactivity():
                 registrar_log(f"Desconectado por inatividade.", 'info')
                 del last_activity[guild_id]
 
+@tasks.loop(seconds=10)  # Verifica a cada 10 segundos
+async def check_controller_position():
+    for guild_id, controller in list(controllers.items()):
+        guild = client.get_guild(guild_id)
+        if not guild:
+            continue
+        
+        channel = controller_channels.get(guild_id, guild.system_channel or guild.text_channels[0])
+        if not channel:
+            continue
+        
+        try:
+            # Verifica se o controlador está fora da tela (mais de 15 mensagens atrás)
+            messages_after_controller = 0
+            async for message in channel.history(limit=100, after=controller.created_at):
+                messages_after_controller += 1
+                if messages_after_controller > 15:
+                    # Se houver mais de 15 mensagens após o controlador, deleta e recria
+                    await controller.delete()
+                    await message.channel.send('🕸️`Controlador reenviado por ter muitas mensagens na frente.`', delete_after=3.3)
+                    await update_controller(guild)
+                    break
+        except Exception as e:
+            print(f"Erro ao verificar histórico do chat: {e}")
+
 client.run(TOKEN)
-# __   __   ______     __  __    
-#/\ \ / /  /\___  \   /\ \/ /    
-#\ \ \'/   \/_/  /__  \ \  _"-.  
-# \ \__|     /\_____\  \ \_\ \_\ 
-#  \/_/      \/_____/   \/_/\/_/ 
-                                
