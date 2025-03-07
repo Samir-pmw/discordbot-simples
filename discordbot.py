@@ -285,7 +285,7 @@ class Client(discord.Client):
             registrar_log(f'Não achei um canal padrão no servidor "{guild.name}";', 'error')
 
 import openai
-openai.key.OPENAI_TOKEN = OPENAI_TOKEN
+openai.OPENAI_TOKEN = OPENAI_TOKEN
 client_instance = Client()
 # Expressão regular para capturar múltiplas rolagens e operações (incluindo termos como +2d20 ou -3d6)
 dados_regex = re.compile(r'([+-]?\d+d\d+)|([+-]?\d+)')
