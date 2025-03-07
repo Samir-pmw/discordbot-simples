@@ -19,3 +19,5 @@ build/
 # Ignore arquivos de configuração de ambiente
 .env
 .env.local
+qrcodepix.png
+bot_logs.txt
