@@ -1,0 +1,21 @@
+# Ignore arquivos de log
+*.log
+
+# Ignore diretórios temporários
+tmp/
+temp/
+
+# Ignore arquivos de sistema operacional
+.DS_Store
+Thumbs.db
+
+# Ignore dependências do Node.js
+node_modules/
+
+# Ignore arquivos de build
+dist/
+build/
+
+# Ignore arquivos de configuração de ambiente
+.env
+.env.local
