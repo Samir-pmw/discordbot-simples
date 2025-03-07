@@ -7,6 +7,7 @@ from discord import app_commands
 import os
 from typing import Optional
 import re
+import requests
 import asyncio
 import logging
 import yt_dlp as youtube_dl
@@ -16,8 +17,10 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
-TOKEN_OPENAI = os.getenv('OPENAI_TOKEN')
+OPENAI_TOKEN = os.getenv('OPENAI_TOKEN')
+TENOR_TOKEN = os.getenv('TENOR_TOKEN')
 TOKEN_SPOTIFY = os.getenv('SPOTIFY_TOKEN')
+search_term = ""  # Termo de pesquisa
 intents = discord.Intents.default()
 intents.message_content = True
 
@@ -26,7 +29,7 @@ client_id = 'f1a5c5e2c142416cb55b37869a00a3f4'
 client_secret = TOKEN_SPOTIFY
 
 logging.basicConfig(
-    filename='C:/Users/Vezkalin/Desktop/bot_logs',
+    filename='bot_logs.txt',
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
@@ -93,11 +96,27 @@ atividades = [
     {"name": "Rolando dados por nenhuma razão, enquanto joga e assiste Subway Surfers 🎲", "type": ActivityType.playing},
     {"name": "Puta com a segração de uma parcela negligenciada da sociedade na piramide socioeconômica nacional. 💣", "type": ActivityType.competing}
 ]
-gifs_peni_parker = [
+gifs_peni_parker_brava = [
     'https://media1.tenor.com/m/o8Jr5LwAGX0AAAAd/peni-parker-angry.gif',
     'https://media1.tenor.com/m/seZp-sCxTrgAAAAd/peni-parker-spiderverse.gif',
     'https://media1.tenor.com/m/WeSIDnKWYX4AAAAd/peni-parker-spiderverse.gif'
 ]
+mensagem_doacao="""
+🌟 **Me ajude a ficar online :p** 🌟
+Escaneie o QR code abaixo para doar qualquer valor e ajudar a cobrir os custos de hospedagem:
+💡 **Instruções:**
+1. Abra o app do seu banco ou carteira digital.
+2. Escaneie o QR code ou copie a chave Pix.
+3. Insira o valor e confirme a doação.
+✨ **Valor sugerido:** R$ 5,00 (ou qualquer valor que puder!)
+📢 **Compartilhe com seus amigos!**
+
+**Com 70 reais, eu fico online 24 horas por mais um mês. <3**
+Chave pix: 
+`e6c48830-173f-4300-a429-45b2bdb36f50`
+
+Caso queira o QR code:
+"""
 gifs_um_natural = ['https://media1.tenor.com/m/w1pO5WeyA6AAAAAd/peni-parker-spiderverse.gif', 
                    'https://media1.tenor.com/m/KArjB65B39MAAAAC/dungeons-and-dragons-dungeons-%26-dragons.gif', 
                    'https://media1.tenor.com/m/k5aYvVGNM3cAAAAC/daeth-funi.gif', 
@@ -136,6 +155,9 @@ comandos_ajuda = [
     "/ajuda - Mostra esta ajuda",
     "\n**Comandos Passivos:**",
     'xDy - não precisa da "/" para funcionar.',
+    "\n**Doação:**",
+    "🌟/doar - Mostra QR code para doação(me ajuda por favor 😭🙏)🌟",
+    "eu preciso de 70 reais para ficar online por mais um mês :p",
     "\nQuer me convidar para o seu servidor? [Clique aqui.](https://discord.com/oauth2/authorize?client_id=1266937657699602432&permissions=8&integration_type=0&scope=applications.commands+bot)"
 ]
 SAUDACOES = [
@@ -165,7 +187,7 @@ respostas_saudacao = [
     "E aí, já se perdeu no TikTok hoje?"
 ]
 XINGAMENTOS = [
-    "vadia", "puta", "vagaba", "cadela", "piranha", "galinha",
+    "vadia", "puta", "vagaba", "kenga", "vaca", "cadela", "piranha", "galinha",
     "biscate", "safada", "vagabunda", "prostituta", "arrombada",
     "traste", "lixo", "baranga", "feiosa", "gorda",
     "nojenta", "fedida", "burra", "idiota", "chata",
@@ -210,6 +232,9 @@ gifs_anime = ["https://media1.tenor.com/m/XNRRNuKYxHwAAAAd/right-now-it%E2%80%99
               "https://tenor.com/view/cellbit-puto-gif-23527036",
               "https://tenor.com/view/shuumatsu-no-valkyrie-nikola-tesla-record-of-ragnarok-enygma-gif-12505791092849673790",
               "https://tenor.com/view/o-gif-6887207115184691665"]
+
+
+
 class Client(discord.Client):
     def __init__(self):
         super().__init__(intents=intents)
@@ -260,7 +285,7 @@ class Client(discord.Client):
             registrar_log(f'Não achei um canal padrão no servidor "{guild.name}";', 'error')
 
 import openai
-openai.api_key = TOKEN_OPENAI
+openai.key.OPENAI_TOKEN = OPENAI_TOKEN
 client_instance = Client()
 # Expressão regular para capturar múltiplas rolagens e operações (incluindo termos como +2d20 ou -3d6)
 dados_regex = re.compile(r'([+-]?\d+d\d+)|([+-]?\d+)')
@@ -333,7 +358,7 @@ async def processar_rolagem(dados: str, interaction=None, message=None):
                         await interaction.response.send_message("Use no máximo 100d1000!", ephemeral=False)
                     elif message:
                         await message.reply(f"{random.choice(respostas_peni_parker)}", mention_author=True)
-                        await message.channel.send(random.choice(gifs_peni_parker))
+                        await message.channel.send(random.choice(gifs_peni_parker_brava))
                 
                 # Rola os dados e ordena os resultados em ordem crescente
                 resultados = sorted([random.randint(1, faces) for _ in range(qtd)])
@@ -429,6 +454,59 @@ def escrever_inventario(user_id: int, campanha: str, inventario: dict[str, int])
     except IOError as e:
         print(f"Erro ao salvar inventário: {e}")
 
+import requests
+
+import requests
+import random
+
+def get_gif(TENOR_TOKEN, search_term, limit=5):
+    """
+    Busca um GIF no Tenor com base no termo de pesquisa e escolhe aleatoriamente entre os primeiros 5 GIFs mais relevantes.
+
+    :param TENOR_TOKEN: Sua chave de API do Tenor (Google Cloud API Key).
+    :param search_term: O termo de pesquisa (ex: "Peni Parker feliz").
+    :param limit: Número máximo de GIFs a serem retornados (padrão é 5).
+    :return: URL de um GIF aleatório entre os primeiros 5 mais relevantes ou None se não encontrar.
+    """
+    if not TENOR_TOKEN:
+        raise ValueError("Chave de API do Tenor não fornecida.")
+    
+    # Endpoint da nova API do Tenor
+    url = "https://tenor.googleapis.com/v2/search"
+    params = {
+        'q': search_term,
+        'key': TENOR_TOKEN,
+        'client_key': "my_test_app",  # Chave do cliente para integração
+        'limit': limit,  # Limita o número de resultados retornados
+        'media_filter': 'gif',  # Filtra apenas GIFs
+        'random': False  # Desativa a aleatoriedade na API (vamos fazer a escolha aleatória no código)
+    }
+    
+    try:
+        # Faz a requisição à API
+        response = requests.get(url, params=params, timeout=10)  # Timeout de 10 segundos
+        response.raise_for_status()  # Levanta uma exceção para respostas HTTP inválidas
+        
+        # Converte a resposta para JSON
+        gifs = response.json()
+        
+        # Verifica se há resultados
+        if 'results' in gifs and gifs['results']:
+            # Seleciona apenas os primeiros 5 GIFs
+            top_gifs = gifs['results'][:limit]
+            
+            # Escolhe aleatoriamente um dos primeiros 5 GIFs
+            random_gif = random.choice(top_gifs)
+            if 'media_formats' in random_gif and 'gif' in random_gif['media_formats']:
+                return random_gif['media_formats']['gif']['url']
+        
+        # Se não houver resultados ou formato inválido
+        return None
+    
+    except requests.exceptions.RequestException as e:
+        print(f"Erro ao buscar GIFs: {e}")
+        return None
+
 def ler_ficha(user_id: int, campanha: str) -> Optional[str]:
     """Lê o conteúdo da ficha com tratamento de erros."""
     try:
@@ -466,6 +544,10 @@ def normalizar_nome_item(nome: str) -> str:
 
 numero_max_de_campanhas = 5
 
+
+
+
+#RPG
 @client_instance.tree.command(name="parar", description="Reinicia completamente o bot no servidor atual")
 async def parar(interaction: discord.Interaction):
     guild = interaction.guild
@@ -674,7 +756,7 @@ async def on_message(message: discord.Message):
             # Cria a resposta com o xingamento encontrado e uma resposta aleatória
             resposta = f"{random.choices([f'{xingamento_na_frase.title()}!? ', ''], weights=[0.35, 0.65])[0]}{random.choice(RESPOSTAS)}"
             await message.reply(resposta, delete_after=3.58)
-            await message.channel.send(f'{random.choice(gifs_peni_parker)}', delete_after=3.3)
+            await message.channel.send(f'{random.choice(gifs_peni_parker_brava)}', delete_after=3.3)
             time.sleep(1.2)
             await message.delete()
         elif any(saudacao in message.content.lower() for saudacao in SAUDACOES):
@@ -686,6 +768,14 @@ async def on_message(message: discord.Message):
         else:
             resposta = obter_resposta(message.content)
             await message.reply(resposta)
+
+
+
+
+
+
+
+
 
 # Comandos_ajuda de administração
 @client_instance.tree.command(name='limpar', description='Apaga mensagens (requer permissão)')
@@ -704,11 +794,11 @@ async def ajuda(interaction: discord.Interaction):
         try:
             # Corrigido: Usar interaction.user em vez de interaction.author
             registrar_log(f"[AJUDA] Comando de ajuda solicitado pelo usuário: {interaction.user}", 'info')
-            await interaction.response.send_message("\n".join(comandos_ajuda), ephemeral=False)
+            await interaction.response.send_message("\n".join(comandos_ajuda), ephemeral=True)
         except discord.HTTPException as e:
             print(f"Erro ao enviar mensagem: {e}")
     else:
-        await interaction.response.send_message("\n".join(comandos_ajuda), ephemeral=False)
+        await interaction.response.send_message("\n".join(comandos_ajuda), ephemeral=True)
         guild = interaction.guild
         if not guild.me.guild_permissions.manage_roles:
             await interaction.response.send_message("Eu preciso da permissão 'Gerenciar Cargos' para criar cargos.", ephemeral=True)
@@ -746,38 +836,93 @@ async def ban(interaction: discord.Interaction, user: discord.User):
     else:
         await interaction.response.send_message('Você não tem permissão para usar este comando.', ephemeral=True)
 #um comando para spammar o singed gremista.
+
+
+
+
+
+
+
+
+
+
+#misc
 @client_instance.tree.command(name='spam_singed_gremista', description='Spamma singed gremista no pv de alguém.')
 @commands.cooldown(1, 60, commands.BucketType.user)  # 1 uso a cada 60 segundos por usuário
 async def singed_gremista(interaction: discord.Interaction, user: discord.User, vezes: int):
+    # Verifica se o número de vezes é maior que 99
     if vezes > 99:
-        await interaction.response.send_message(f"Coloquei um limite de 99 para não fuder a pessoa pela eternidade né porra.", ephemeral=False)
+        await interaction.response.send_message(
+            "Coloquei um limite de 99 para não fuder a pessoa pela eternidade né porra.",
+            ephemeral=False
+        )
         return
 
-    await interaction.response.defer(ephemeral=False)
+    # Busca um GIF de Peni Parker feliz
+    gif_url = get_gif(TENOR_TOKEN, 'peni parker happy', 3)
+    
+    if not gif_url:
+        return
     
     count = 0
     for i in range(vezes):
         try:
-            await user.send('https://static-cdn.jtvnw.net/jtv_user_pictures/d00aa4af-f29b-4030-b844-5d1d576f7a1d-profile_image-300x300.png https://www.youtube.com/watch?v=-4tYjOAynU0')
+            # Envia o Singed Gremista
+            await user.send('https://static-cdn.jtvnw.net/jtv_user_pictures/d00aa4af-f29b-4030-b844-5d1d576f7a1d-profile_image-300x300.png')
             count += 1
             await asyncio.sleep(1)  # Espera 1 segundo entre cada mensagem
         except discord.errors.Forbidden:
-            await interaction.followup.send(f"Não consegui enviar mensagens para {user.mention}. Parece que ele(a) me deu block, n tankouKKKKKKKKKKKK.", ephemeral=False)
+            # Se o usuário bloqueou o bot
+            await interaction.followup.send(
+                f"Não consegui enviar mensagens para {user.mention}. Parece que ele(a) me deu block, n tankouKKKKKKKKKKKK.",
+                ephemeral=False
+            )
             break
+
+    # Envia uma mensagem de desculpas e o GIF de Peni Parker
+    if count > 0:
+        await user.send('Desculpa pelos Singeds Gremistas, mas alguém realmente quis fazer você passar por essa experiência :p')
+        await user.send(gif_url)
+
+    # Responde no canal com o resultado
     if count == 1:
-        await interaction.followup.send(f"{count} singed gremista enviado para {user.mention}.", ephemeral=False)
-    if count > 1:
-        await interaction.followup.send(f"{count} singeds gremistas enviados para {user.mention}.", ephemeral=False)
+        await interaction.followup.send(
+            f"{count} singed gremista enviado para {user.mention}.",
+            ephemeral=False
+        )
+    elif count > 1:
+        await interaction.followup.send(
+            f"{count} singeds gremistas enviados para {user.mention}.",
+            ephemeral=False
+        )
+
 @client_instance.tree.command(name="moeda", description="Jogue uma moeda e veja o resultado (cara ou coroa).")
 async def moeda(interaction: discord.Interaction):
     resultado = random.choice(["Cara", "Coroa"])
     registrar_log(f"[MOEDA] Jogada de moeda: {resultado}, pelo usuário: {interaction.user}", 'info')
     await interaction.response.send_message(f"🪙 **Resultado:** `{resultado}`")
 
+@client_instance.tree.command(name='doar', description='Um comando para doar e fazer o bot ficar online.')
+async def doar(interaction: discord.Interaction):
+    try:
+        # Corrigido: Usar interaction.user em vez de interaction.author
+        registrar_log(f"[DOAÇÃO] Comando de doação solicitado pelo usuário: {interaction.user}", 'info')
+        await interaction.response.send_message(f'{mensagem_doacao}', file=discord.File('qrcodepix.png'), ephemeral=True)
+        await interaction.followup.send(get_gif(TENOR_TOKEN, 'Peni Parker Happy', 3), ephemeral=True)
+    except discord.HTTPException as e:
+        print(f"Erro ao enviar mensagem: {e}")
+
+
+
+
+
+
+
+
+
+
+
 #bot de música
-
-
-# Configurações iniciais
 client = client_instance
 
 # Dados por servidor
@@ -790,6 +935,7 @@ controller_channels = {}  # Novo dicionário para armazenar os canais
 
 # Configurações do yt-dlp
 ytdl_format_options = {
+    'cookiefile': 'cookies.txt',
     'format': 'bestaudio/best',
     'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
     'restrictfilenames': True,
