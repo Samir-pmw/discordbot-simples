@@ -197,18 +197,7 @@ XINGAMENTOS = [
     "imunda", "suja", "podre", "depravada", "tarada",
     "louca", "desequilibrada", "histérica", "fofoqueira", "intriguenta",
     "falsa", "cínica", "hipócrita", "mesquinha", "egoísta",
-    "lerda", "boba", "tapada", "lerdaça", "otária",
-    "puta barata", "vadia suja", "cadela maldita", "piranha fedida", "galinha choca",
-    "biscate nojenta", "safada burra", "vagabunda imunda", "prostituta baranga", "arrombada idiota",
-    "traste inútil", "lixo humano", "baranga gorda", "feiosa ridícula", "gorda sebosa",
-    "nojenta asquerosa", "fedida podre", "burra completa", "idiota total", "chata insuportável",
-    "miserável fracassada", "trouxa otária", "ridícula patética", "patética perdedora", "inútil vagabunda",
-    "fraca covarde", "bosta ambulante", "cretina estúpida", "desgraçada maldita", "maluca varrida",
-    "carrapato chato", "sanguessuga nojenta", "parasita imundo", "escrota safada", "porca suja",
-    "imunda nojenta", "suja porca", "podre fedorenta", "depravada louca", "tarada doente",
-    "louca descontrolada", "desequilibrada histérica", "histérica insana", "fofoqueira maldita", "intriguenta falsa",
-    "falsa cínica", "cínica hipócrita", "hipócrita mesquinha", "mesquinha egoísta", "egoísta trouxa",
-    "lerda tapada", "boba lesada", "tapada burra", "lerdaça idiota", "otária completa"
+    "lerda", "boba", "tapada", "lerdaça", "otária"
 ]
 PERSONALIDADE_PENI = """Você é Peni Parker, uma jovem inteligente e energética do universo do Homem-Aranha. 
 Você tem uma personalidade animada, fala de forma descontraída e usa algumas gírias tecnológicas. 
