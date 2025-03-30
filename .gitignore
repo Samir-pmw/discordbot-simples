@@ -1,3 +1,9 @@
+# Ignorar misc
+ficha_*.txt
+inventario_*.txt
+qrcodepix.png
+requirements.txt
+cookies.txt
 # Ignore arquivos de log
 *.log
 credentials.json
