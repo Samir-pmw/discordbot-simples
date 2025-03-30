@@ -1,6 +1,6 @@
 # Ignore arquivos de log
 *.log
-
+credentials.json
 # Ignore diretórios temporários
 tmp/
 temp/
