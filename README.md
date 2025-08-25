@@ -74,10 +74,7 @@ Resultado: Adiciona uma espada ao inventário da campanha selecionada.
 Contribuição
 Contribuições são bem-vindas! Sinta-se à vontade para abrir issues e pull requests.
 
-Licença
-Este projeto está licenciado sob a licença MIT. Veja o arquivo LICENSE para mais detalhes.
-
-Quer me falar comigo? [Clique aqui](https://konect.gg/vezkalin) :)
+Quer me falar comigo? [Clique aqui](https://samir-pmw.github.io/) :)
 
 
 ### Explicação do README.md
@@ -87,7 +84,6 @@ Quer me falar comigo? [Clique aqui](https://konect.gg/vezkalin) :)
 3. **Configuração**: Explica como configurar o ambiente e executar o bot.
 4. **Uso**: Fornece exemplos de como usar os comandos.
 5. **Contribuição**: Convida outros a contribuir para o projeto.
-6. **Licença**: Informa sobre a licença do projeto.
-7. **Contato**: Fornece informações de contato para dúvidas ou sugestões.
+6. **Contato**: Fornece informações de contato para dúvidas ou sugestões.
 
 Esse `README.md` é um guia básico para quem deseja usar ou contribuir com o seu bot. Você pode personalizá-lo conforme necessário!
