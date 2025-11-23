@@ -53,6 +53,13 @@ SPOTIFY_TOKEN=seu_token_do_spotify
 4.Execute o bot:  
 python bot.py  
 
+### Onde ficam os arquivos gerados
+
+- Todos os arquivos temporários (músicas, fichas, inventários e logs) são criados dentro de `%APPDATA%\PeniBot`.
+- Se você usar a versão do Python distribuída pela Microsoft Store, o Windows virtualiza essa pasta. O conteúdo real ficará em `C:\Users\SEU_USUARIO\AppData\Local\Packages\PythonSoftwareFoundation.Python.<versão>\LocalCache\Roaming\PeniBot`.
+- Assim que o bot inicia, ele registra (no console e no log) o caminho detectado. Se houver virtualização, a mensagem mostra explicitamente onde os arquivos estão.
+- Você também pode navegar manualmente pelo Explorador de Arquivos até o caminho da `LocalCache` indicado acima para visualizar todos os dados gerados.
+
 Uso
 Comandos Básicos
 /ajuda: Exibe uma lista de todos os comandos disponíveis.

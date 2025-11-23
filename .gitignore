@@ -21,3 +21,8 @@ build/
 .env.local
 qrcodepix.png
 bot_logs.txt
+
+# Ignore caches e arquivos do Windows
+__pycache__/
+*.pyc
+desktop.ini
