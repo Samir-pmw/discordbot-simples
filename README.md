@@ -34,7 +34,38 @@ Peni Parker Bot é um bot multifuncional para Discord, desenvolvido para auxilia
 
 ### Pré-requisitos
 - Python 3.8 ou superior.
-- Bibliotecas Python: `discord.py`, `yt-dlp`, `spotipy`, `python-dotenv`, `openai`.
+- FFmpeg instalado e presente no PATH (necessário para tocar áudio).
+- Bibliotecas Python listadas em `requirements.txt` (inclui `PyNaCl`, obrigatório para voz).
+
+#### Instalando o FFmpeg no Windows
+1. Baixe o pacote estático em [ffmpeg.org/download.html](https://ffmpeg.org/download.html) (ou diretamente pela [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) – use a *release full*).
+2. Extraia o `.zip` em uma pasta sem espaços, por exemplo `C:\ffmpeg`.
+3. Adicione o diretório `bin` do FFmpeg à variável de ambiente `Path` do Windows (o nome é exatamente `Path`, com P maiúsculo). O caminho vai depender da pasta em que você extraiu o pacote. Exemplos válidos:
+   - `C:\ffmpeg\bin` (se você renomeou a pasta para algo simples)
+   - `C:\ffmpeg-2025-11-17-git-e94439e49b-essentials_build\bin` (nome completo criado pelo zip recém-baixado)
+
+   Passo a passo para editar o `Path`:
+   - Abra o menu Iniciar, digite **"variáveis de ambiente"** e clique em `Editar as variáveis de ambiente do sistema`.
+   - Na janela que abrir, clique em **"Variáveis de Ambiente"**.
+   - Selecione `Path` em **Variáveis do sistema** (ou do usuário) e clique em **Editar** → **Novo**.
+   - Cole o caminho completo do `bin` (por exemplo `C:\ffmpeg-2025-11-17-git-e94439e49b-essentials_build\bin`), confirme tudo com **OK** e feche as janelas.
+4. Feche e reabra o terminal (PowerShell/CMD) e confirme com `ffmpeg -version`.
+
+> Se preferir usar um gerenciador de pacotes, `choco install ffmpeg` (Chocolatey) ou `scoop install ffmpeg` também funcionam.
+
+##### Definindo o caminho manualmente
+Se mesmo após editar o `Path` o bot não localizar o executável, você pode informar o caminho diretamente nas variáveis de ambiente:
+
+```
+PENIBOT_FFMPEG=C:\ffmpeg-2025-11-17-git-e94439e49b-essentials_build\bin\ffmpeg.exe
+PENIBOT_FFPROBE=C:\ffmpeg-2025-11-17-git-e94439e49b-essentials_build\bin\ffprobe.exe
+```
+
+Basta adicionar essas linhas ao seu `.env` (ou às variáveis de usuário do Windows) e reiniciar o bot. O código prioriza esses caminhos explícitos antes de procurar no `Path`.
+
+> Observação: em arquivos `.env`, use barras duplas (`\\`) ou barras normais (`/`) para evitar que sequências como `\n` sejam interpretadas pelo loader. Exemplos válidos: `C:\\ffmpeg\\bin\\ffmpeg.exe` ou `C:/ffmpeg/bin/ffmpeg.exe`.
+
+Ao iniciar o bot, procure no console/log a mensagem `FFmpeg detectado em '...'`. Se ela não aparecer (ou vier uma advertência dizendo que não encontrou), revise os caminhos informados.
 
 ### Instalação
 1. Clone o repositório:
@@ -42,16 +73,33 @@ Peni Parker Bot é um bot multifuncional para Discord, desenvolvido para auxilia
    git clone https://github.com/seu-usuario/peni-parker-bot.git
    cd peni-parker-bot
 
-2.Instale as dependências:
-pip install -r requirements.txt  
+2. Instale as dependências (inclui PyNaCl e os extras de voz do discord.py):
+```bash
+pip install -r requirements.txt
+```
 
-3.Crie um arquivo .env na raiz do projeto e adicione as seguintes variáveis de ambiente:
-DISCORD_TOKEN=seu_token_do_discord  
-OPENAI_TOKEN=seu_token_da_openai  
-SPOTIFY_TOKEN=seu_token_do_spotify
+> Se você já tinha o ambiente configurado antes e está vendo o erro `PyNaCl library needed in order to use voice`, execute novamente o comando acima ou rode `pip install PyNaCl discord.py[voice]` para garantir que a biblioteca de voz está presente.
+
+3. Crie um arquivo `.env` na raiz do projeto e adicione as variáveis necessárias (veja o exemplo abaixo).
 
 4.Execute o bot:  
 python bot.py  
+
+#### Exemplo seguro de `.env`
+
+```env
+DISCORD_TOKEN=coloque_seu_token_do_discord_aqui
+OPENAI_TOKEN=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+SPOTIFY_CLIENT_ID=seu_client_id
+SPOTIFY_CLIENT_SECRET=seu_client_secret
+TENOR_TOKEN=sua_chave_do_tenor
+GOOGLE_DRIVE_FOLDER_ID=opcional
+
+PENIBOT_FFMPEG=C:\\ffmpeg-2025-11-17-git-e94439e49b-essentials_build\\bin\\ffmpeg.exe
+PENIBOT_FFPROBE=C:\\ffmpeg-2025-11-17-git-e94439e49b-essentials_build\\bin\\ffprobe.exe
+```
+
+> Nunca versione o seu `.env`. O arquivo real contém credenciais sensíveis e já está listado no `.gitignore`.
 
 ### Onde ficam os arquivos gerados
 

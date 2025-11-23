@@ -47,7 +47,6 @@ FFMPEG_BASE_BEFORE_OPTIONS = [
     '-reconnect_on_http_error 4xx,5xx',
     '-multiple_requests 1',
     '-protocol_whitelist file,http,https,tcp,tls,crypto',
-    '-allowed_extensions ALL',
 ]
 
 ffmpeg_options = {
@@ -59,9 +58,38 @@ AUDIO_EXTENSIONS = {'.mp3', '.m4a', '.webm', '.opus', '.mp4'}
 MUSIC_CACHE_PREFIX = "penibot_audio_"
 MUSIC_CACHE_MAX_AGE_SECONDS = 60 * 60 * 6  # 6 horas
 
-FFMPEG_PATH = shutil.which('ffmpeg')
-FFPROBE_PATH = shutil.which('ffprobe')
+def _resolve_binary(env_var: str, binary_name: str):
+    """Permite definir caminhos explícitos do FFmpeg/ffprobe via variáveis de ambiente."""
+    custom_value = os.getenv(env_var)
+    if custom_value:
+        cleaned_value = custom_value.strip().strip('\'"')
+        candidate = Path(cleaned_value).expanduser()
+        if candidate.is_dir():
+            exe_name = binary_name + ('.exe' if os.name == 'nt' else '')
+            candidate = candidate / exe_name
+        if candidate.is_file():
+            return str(candidate)
+        registrar_log(
+            f"{env_var} foi definido, mas '{candidate}' não existe ou não é um arquivo executável.",
+            'warning'
+        )
+    return shutil.which(binary_name)
+
+
+FFMPEG_PATH = _resolve_binary('PENIBOT_FFMPEG', 'ffmpeg')
+FFPROBE_PATH = _resolve_binary('PENIBOT_FFPROBE', 'ffprobe')
 FFMPEG_AVAILABLE = bool(FFMPEG_PATH and FFPROBE_PATH)
+if FFMPEG_AVAILABLE:
+    registrar_log(
+        f"FFmpeg detectado em '{FFMPEG_PATH}' e ffprobe em '{FFPROBE_PATH}'.",
+        'info'
+    )
+else:
+    registrar_log(
+        "FFmpeg ou ffprobe não foram encontrados. Configure o PATH ou use PENIBOT_FFMPEG/PENIBOT_FFPROBE.",
+        'warning'
+    )
+FFMPEG_HELP_URL = "https://ffmpeg.org/download.html"
 
 ORIGINAL_YTDL_OPTIONS = deepcopy(ytdl_format_options)
 ORIGINAL_YTDL_OPTIONS['postprocessors'] = []
@@ -390,7 +418,12 @@ class YTDLSource(discord.PCMVolumeTransformer):
                 filename = data['url'] if stream else cls._resolve_file_path(data, ytdl.prepare_filename(data))
                 ffmpeg_kwargs = cls._build_ffmpeg_options(data) if stream else ffmpeg_options
 
-            return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_kwargs), data=data, cleanup_targets=cleanup_targets)
+            ffmpeg_exec = FFMPEG_PATH or 'ffmpeg'
+            return cls(
+                discord.FFmpegPCMAudio(filename, executable=ffmpeg_exec, **ffmpeg_kwargs),
+                data=data,
+                cleanup_targets=cleanup_targets
+            )
         except Exception as e:
             print(f"[DEBUG] Erro em YTDLSource.from_url: {e}") # Adiciona print para depuração
             registrar_log(f"Erro ao extrair info do YTDL: {e}", 'error')
@@ -866,6 +899,19 @@ class Music(commands.Cog):
     async def tocar(self, interaction: discord.Interaction, url: str):
         try:
             await interaction.response.defer()
+
+            if not FFMPEG_AVAILABLE:
+                await interaction.followup.send(
+                    "❌ FFmpeg não foi encontrado no sistema. Instale o FFmpeg, adicione-o ao PATH "
+                    "e reinicie o bot. Veja o README para instruções detalhadas.",
+                    ephemeral=True
+                )
+                registrar_log(
+                    "Comando /tocar bloqueado: FFmpeg ausente. Veja "
+                    f"{FFMPEG_HELP_URL} para instalar.",
+                    'error'
+                )
+                return
             
             voice_client = await self._ensure_voice(interaction)
             if not voice_client:
