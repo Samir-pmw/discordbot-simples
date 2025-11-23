@@ -978,6 +978,10 @@ class Music(commands.Cog):
             guild = self.bot.get_guild(guild_id)
             if guild and guild.voice_client:
                 voice_channel = guild.voice_client.channel
+                voice_client = guild.voice_client
+                if voice_client.is_playing() or voice_client.is_paused() or self.queue.get(guild_id):
+                    self.last_activity[guild_id] = discord.utils.utcnow()
+                    continue
                 members_in_voice = len(voice_channel.members) if voice_channel else 0
                 is_alone = members_in_voice <= 1
                 
