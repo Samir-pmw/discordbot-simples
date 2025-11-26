@@ -1,5 +1,5 @@
 # Peni Parker Bot
-
+<img src="https://preview.redd.it/t613sd1lsq5b1.jpg?width=640&crop=smart&auto=webp&s=34624680ac2c3813bec3326decaa3dc6381f7978" />
 Peni Parker Bot é um bot multifuncional para Discord, desenvolvido para auxiliar em sessões de RPG, tocar música, e interagir com os usuários de forma divertida e dinâmica. Inspirado na personagem Peni Parker do universo do Homem-Aranha, o bot possui uma personalidade única e oferece uma variedade de comandos para entreter e ajudar os usuários.
 
 ## Funcionalidades
@@ -132,7 +132,7 @@ Contribuições são bem-vindas! Sinta-se à vontade para abrir issues e pull re
 Licença
 Este projeto está licenciado sob a licença MIT. Veja o arquivo LICENSE para mais detalhes.
 
-Quer me falar comigo? [Clique aqui](https://konect.gg/vezkalin) :)
+Quer me falar comigo? [Clique aqui](https://papiro.dev/) :)
 
 
 ### Explicação do README.md
