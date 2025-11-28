@@ -134,7 +134,7 @@ Contribuições são bem-vindas! Sinta-se à vontade para abrir issues e pull re
 Licença
 Este projeto está licenciado sob a licença MIT. Veja o arquivo LICENSE para mais detalhes.
 
-Quer me falar comigo? [Clique aqui](https://papiro.dev/) :)
+Quer falar comigo? [Clique aqui](https://papiro.dev/) :)
 
 
 ### Explicação do README.md
