@@ -14,7 +14,7 @@ from utils import (
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
-OPENAI_TOKEN = os.getenv('OPENAI_TOKEN')
+GEMINI_TOKEN = os.getenv('GEMINI_TOKEN')
 TENOR_TOKEN = os.getenv('TENOR_TOKEN')
 # Carrega as credenciais do Spotify do .env
 SPOTIFY_CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
@@ -48,7 +48,7 @@ class PeniBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.config = {
-            'openai_token': OPENAI_TOKEN,
+            'gemini_token': GEMINI_TOKEN,
             'tenor_token': TENOR_TOKEN,
             'spotify_id': SPOTIFY_CLIENT_ID,
             'spotify_secret': SPOTIFY_CLIENT_SECRET

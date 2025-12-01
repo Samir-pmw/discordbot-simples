@@ -26,8 +26,8 @@ class Fun(commands.Cog):
 
         if 'duvido' in message.content.lower():
             try:
-                await message.reply("Meu p## no seu ouvido KKKKKKKKKKK, mentira, eu não tenho p##", mention_author=True, delete_after=3.58)
-                await message.channel.send('https://tenor.com/rvVEqNwNJB0.gif', delete_after=3.3)
+                await message.reply("Meu p## no seu ouvido KKKKKKKKKKK, mentira, eu não sou real", mention_author=True, delete_after=3.58)
+                await message.channel.send('https://tenor.com/bbPNvlEPvvL.gif', delete_after=3.3)
             except discord.Forbidden:
                 pass # Ignora se não puder responder
 

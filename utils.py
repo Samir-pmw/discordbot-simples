@@ -1,15 +1,68 @@
 import logging
 import os
 from pathlib import Path
+from typing import Optional
 
 import discord
 import asyncio
 import requests
 import random
-import openai
-from constants import PERSONALIDADE_PENI
+import google.generativeai as genai
+from constants import PERSONALIDADE_LAIN
 
-APP_NAME = "PeniBot"
+# Nome exibido em pastas/arquivos locais
+APP_NAME = "LainBot"
+
+
+def _normalize_model_name(raw_name: Optional[str]) -> str:
+    default = "gemini-2.5-flash-lite"
+    if not raw_name:
+        return default
+    cleaned = raw_name.strip()
+    if not cleaned:
+        return default
+    if not cleaned.startswith("models/"):
+        cleaned = f"models/{cleaned}"
+    return cleaned
+
+
+GEMINI_MODEL_NAME = _normalize_model_name(os.getenv("GEMINI_MODEL"))
+
+
+def _safe_float(env_name: str, default: float) -> float:
+    raw = os.getenv(env_name)
+    if raw is None:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        logging.warning(f"Valor inválido para {env_name}={raw}, usando {default}.")
+        return default
+
+
+def _safe_int(env_name: str, default: int, min_value: int, max_value: int) -> int:
+    raw = os.getenv(env_name)
+    if raw is None:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        logging.warning(f"Valor inválido para {env_name}={raw}, usando {default}.")
+        return default
+    return max(min_value, min(max_value, value))
+
+
+def _load_generation_config() -> dict:
+    """Carrega configuração de geração do Gemini com overrides via .env."""
+    return {
+        "temperature": _safe_float("GEMINI_TEMPERATURE", 0.6),
+        "top_p": _safe_float("GEMINI_TOP_P", 0.9),
+        "top_k": _safe_int("GEMINI_TOP_K", 40, 1, 128),
+        "max_output_tokens": _safe_int("GEMINI_MAX_OUTPUT_TOKENS", 150, 32, 2048),
+    }
+
+
+GENERATION_CONFIG = _load_generation_config()
 
 
 def _resolve_appdata_base() -> Path:
@@ -95,7 +148,7 @@ def buscar_gif(TENOR_TOKEN, search_term, limit=5):
     params = {
         'q': search_term,
         'key': TENOR_TOKEN,
-        'client_key': "peni_parker_bot",  # Chave de cliente
+        'client_key': "lain_iwakura_bot",  # Identificação no Tenor
         'limit': limit,
         'media_filter': 'gif',
         'random': False
@@ -116,28 +169,94 @@ def buscar_gif(TENOR_TOKEN, search_term, limit=5):
         registrar_log(f"Erro ao buscar GIFs: {e}", 'error')
         return None
 
-def obter_resposta(entrada, OPENAI_TOKEN):
-    """
-    Obtém uma resposta do GPT-3.5-turbo com a personalidade da Peni Parker.
-    """
-    # Define a chave de API (compatível com a versão antiga do SDK openai)
-    openai.api_key = OPENAI_TOKEN
-    
-    try:
-        resposta = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": PERSONALIDADE_PENI},
-                {"role": "user", "content": entrada}
-            ]
+def _extrair_texto_gemini(resposta) -> str:
+    """Concatena os trechos de texto das candidates válidas do Gemini."""
+    partes: list[str] = []
+    finish_reasons: list[str] = []
+    for candidate in getattr(resposta, "candidates", []) or []:
+        finish_reason = getattr(candidate, "finish_reason", None)
+        reason_val = getattr(finish_reason, "name", finish_reason)
+        reason_text = str(reason_val or "").upper()
+        finish_reasons.append(reason_text or "DESCONHECIDO")
+        if reason_text == "SAFETY" or reason_text.endswith("_SAFETY"):
+            # Pulamos candidatos bloqueados por segurança mas registramos no log.
+            registrar_log(
+                "Candidate do Gemini bloqueado por segurança; tentando próximo.",
+                "warning",
+            )
+            continue
+        content = getattr(candidate, "content", None)
+        if not content:
+            continue
+        for part in getattr(content, "parts", []) or []:
+            texto = None
+            if isinstance(part, dict):
+                texto = part.get("text")
+            else:
+                texto = getattr(part, "text", None)
+            if texto:
+                partes.append(texto)
+        if partes:
+            break
+    if not partes and finish_reasons:
+        registrar_log(
+            f"Nenhum texto extraído dos candidates. finish_reasons={finish_reasons}",
+            "warning",
         )
-        return resposta["choices"][0]["message"]["content"]
-    except Exception as e:
-        registrar_log(f"Erro ao contatar OpenAI: {e}", 'error')
+    return "\n".join(partes).strip()
+
+
+def obter_resposta(entrada: str, gemini_token: str):
+    """Obtém uma resposta do Gemini usando a persona contemplativa da Lain."""
+    if not gemini_token:
+        registrar_log("Token do Gemini não configurado.", 'error')
         return random.choice([
-            'Estou sem bateria social -.-', 
-            'Tô com soninho, me deixa dormir', 
-            'Não tô afim de falar com você.', 
-            'Me deixa quieta...',
-            'Zzzzzzzzzzzzzzzzzzzzzzzzzz'
+            "tô meio cansada agora... posso falar depois?",
+            "mto sono, desculpa ai..",
         ])
+
+    try:
+        genai.configure(api_key=gemini_token)
+        model = genai.GenerativeModel(
+            model_name=GEMINI_MODEL_NAME,
+            system_instruction=PERSONALIDADE_LAIN,
+        )
+        resposta = model.generate_content(
+            [
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "text": entrada.strip(),
+                        }
+                    ],
+                }
+            ],
+            generation_config=GENERATION_CONFIG,
+        )
+
+        feedback = getattr(resposta, "prompt_feedback", None)
+        if feedback and getattr(feedback, "block_reason", None):
+            registrar_log(
+                f"Gemini bloqueou a resposta: {feedback.block_reason}",
+                'warning',
+            )
+            if getattr(feedback, "safety_ratings", None):
+                registrar_log(
+                    f"Safety ratings: {feedback.safety_ratings}",
+                    'warning',
+                )
+
+        texto = _extrair_texto_gemini(resposta)
+        if texto:
+            return texto
+
+        registrar_log("Resposta vazia recebida do Gemini.", 'warning')
+    except Exception as e:
+        registrar_log(f"Erro ao contatar Gemini: {e}", 'error')
+
+    return random.choice([
+        "o sinal tá fraco e eu tô com sono... tenta de novo.",
+        "acho que exagerei no café... preciso respirar antes de responder.",
+        "minha cabeça tá pesada agora. repete mais tarde, por favor.",
+    ])
