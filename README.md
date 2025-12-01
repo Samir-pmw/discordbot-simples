@@ -1,21 +1,15 @@
-# Peni Parker Bot
+# Lain Bot
 <p align="center">
-  <img src="https://preview.redd.it/t613sd1lsq5b1.jpg?width=640&crop=smart&auto=webp&s=34624680ac2c3813bec3326decaa3dc6381f7978" width="30%" />
+  <img src="https://i.pinimg.com/736x/6c/ef/fb/6ceffb9310699f63aa4cfe58b67bf2dc.jpg" width="30%" />
 </p>
-Peni Parker Bot é um bot multifuncional para Discord, desenvolvido para auxiliar em sessões de RPG, tocar música, e interagir com os usuários de forma divertida e dinâmica. Inspirado na personagem Peni Parker do universo do Homem-Aranha, o bot possui uma personalidade única e oferece uma variedade de comandos para entreter e ajudar os usuários.
+Lain Bot é um bot multifuncional para Discord, desenvolvido para auxiliar em sessões de RPG, tocar música, e interagir com os usuários de forma divertida e dinâmica. 
 
 ## Funcionalidades
 
 ### Comandos de RPG
-- **/criar_campanha**: Cria uma nova campanha de RPG.
-- **/selecionar_campanha**: Seleciona uma campanha para uso.
-- **/registrar_ficha**: Registra uma ficha de personagem.
-- **/ficha**: Exibe a ficha de personagem atual.
-- **/add**: Adiciona itens ao inventário.
-- **/remover**: Remove itens do inventário.
-- **/inventario**: Exibe o inventário da campanha.
-- **/rolar**: Rola dados no formato XdY+Z.
-- **/moeda**: Joga uma moeda (cara ou coroa).
+- **/painel_rpg** - Mostra um layout para te ajudar a gerenciar ficha e inventário.
+- **/rolar [XdY]** - Rola dados
+- **/moeda** - realiza um cara ou coroa
 
 ### Comandos de Música
 - **/tocar**: Toca uma música ou playlist do YouTube ou Spotify.
