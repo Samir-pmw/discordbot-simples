@@ -34,7 +34,7 @@ ytdl_format_options = {
     'fragment_retries': 15,
 }
 
-FFMPEG_OPTION_FLAGS = '-vn -af volume=0.25 -loglevel warning'
+FFMPEG_OPTION_FLAGS = '-vn -af volume=0.7 -loglevel warning'
 
 # Permite reconexão para streams HLS e garante suporte aos protocolos/segmentos exigidos pelo YouTube.
 FFMPEG_BASE_BEFORE_OPTIONS = [
@@ -55,7 +55,7 @@ ffmpeg_options = {
 
 
 AUDIO_EXTENSIONS = {'.mp3', '.m4a', '.webm', '.opus', '.mp4'}
-MUSIC_CACHE_PREFIX = "penibot_audio_"
+MUSIC_CACHE_PREFIX = "https://open.spotify.com/playlist/3wpiw1YCHP1O7feGcdogtm?si=bb2ad16c3d504903bot_audio_"
 MUSIC_CACHE_MAX_AGE_SECONDS = 60 * 60 * 6  # 6 horas
 
 def _resolve_binary(env_var: str, binary_name: str):
@@ -846,7 +846,7 @@ class Music(commands.Cog):
             return
 
         embed = discord.Embed(
-            title="🎵 Controle de Música - Peni Parker",
+            title="🎵 Controle de Música - LainBot",
             color=discord.Color.blurple()
         ).set_footer(text="Use /tocar para adicionar mais músicas")
         

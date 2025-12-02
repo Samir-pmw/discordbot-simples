@@ -4,7 +4,7 @@ from discord import app_commands
 import random
 import asyncio
 
-from utils import registrar_log, buscar_gif
+from utils import registrar_log, buscar_gif, obter_opgg_resumo, normalize_opgg_region
 from constants import dados_regex # Para ignorar rolagens de dados no listener
 
 class Fun(commands.Cog):
@@ -91,6 +91,96 @@ class Fun(commands.Cog):
         resultado = random.choice(["Cara", "Coroa"])
         registrar_log(f"[MOEDA] {interaction.user} jogou moeda: {resultado}", 'info')
         await interaction.response.send_message(f"🪙 **Resultado:** `{resultado}`")
+
+    # --- Comando somente LoL ---
+    @app_commands.command(name="lol", description="Resumo do perfil de League of Legends via op.gg")
+    @app_commands.describe(
+        perfil="Nome (ou nome#tag) ex: Papiro#piro",
+        regiao="Região do LoL (ex: br, euw, na). Padrão: br"
+    )
+    async def lol(self, interaction: discord.Interaction, perfil: str, regiao: str = "br"):
+        await interaction.response.defer(thinking=True)
+        nome_lol = perfil.strip()
+        riot_id = None
+        if "#" in nome_lol:
+            riot_id = nome_lol
+            nome_lol = nome_lol.split('#', 1)[0]
+        regiao = normalize_opgg_region(regiao)
+        try:
+            resumo = obter_opgg_resumo(nome_lol, regiao, (riot_id or "").strip())
+        except Exception as e:
+            registrar_log(f"Erro no /lol: {e}", 'error')
+            await interaction.followup.send("Não consegui acessar o op.gg agora. Tente novamente mais tarde.")
+            return
+        if not resumo or not resumo.get("lol"):
+            await interaction.followup.send("Não encontrei informações de LoL para esse perfil.")
+            return
+        lol = resumo["lol"]
+        embed = discord.Embed(title="League of Legends", color=discord.Color.green())
+        embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url)
+        title = f"{lol.get('summoner_name','')} ({regiao.upper()})"
+        desc = []
+        if lol.get("private"):
+            desc.append("Perfil privado no op.gg")
+        if lol.get("not_found"):
+            desc.append("Perfil não encontrado ou op.gg indisponível")
+        if lol.get("rank"):
+            desc.append(f"Rank: **{lol['rank']}**")
+        if lol.get("lp"):
+            desc.append(f"LP: **{lol['lp']}**")
+        if lol.get("winrate"):
+            desc.append(f"Winrate: **{lol['winrate']}**")
+        if lol.get("matches"):
+            desc.append(f"Partidas recentes: {lol['matches']}")
+        embed.add_field(name=title, value="\n".join(desc) or "Sem dados", inline=False)
+        if lol.get("avatar_url"):
+            embed.set_thumbnail(url=lol["avatar_url"]) 
+        embed.set_footer(text="Fonte: op.gg • Dados sujeitos a mudanças")
+        await interaction.followup.send(embed=embed)
+
+    # --- Comando somente Valorant ---
+    @app_commands.command(name="valorant", description="Resumo do perfil de Valorant via op.gg")
+    @app_commands.describe(
+        riot_id="Riot ID (nome#tag) ex: Papiro#piro"
+    )
+    async def valorant(self, interaction: discord.Interaction, riot_id: str):
+        await interaction.response.defer(thinking=True)
+        riot_id = (riot_id or "").strip()
+        if "#" not in riot_id:
+            await interaction.followup.send("Formato inválido. Use nome#tag (ex: Papiro#piro)")
+            return
+        # Para Valorant, região não é usada na URL do op.gg
+        try:
+            # Passa um nome fictício para LoL e foca no Valorant
+            resumo = obter_opgg_resumo(riot_id.split('#',1)[0], "br", riot_id)
+        except Exception as e:
+            registrar_log(f"Erro no /valorant: {e}", 'error')
+            await interaction.followup.send(f"Erro ao acessar op.gg: {e}")
+            return
+        if not resumo:
+            await interaction.followup.send("Nenhuma informação retornada do op.gg.")
+            return
+        if not resumo.get("valorant"):
+            await interaction.followup.send("Não encontrei informações de Valorant para esse Riot ID.")
+            return
+        val = resumo["valorant"]
+        embed = discord.Embed(title="Valorant", color=discord.Color.red())
+        embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url)
+        title = f"{val.get('riot_id','')}"
+        desc = []
+        if val.get("private"):
+            desc.append("Perfil privado no op.gg")
+        if val.get("mmr"):
+            desc.append(f"MMR: **{val['mmr']}**")
+        if val.get("rank"):
+            desc.append(f"Rank: **{val['rank']}**")
+        if val.get("kda"):
+            desc.append(f"K/D/A: **{val['kda']}**")
+        if val.get("winrate"):
+            desc.append(f"Winrate: **{val['winrate']}**")
+        embed.add_field(name=title, value="\n".join(desc) or "Sem dados", inline=False)
+        embed.set_footer(text="Fonte: op.gg • Dados sujeitos a mudanças")
+        await interaction.followup.send(embed=embed)
 
 # Função 'setup' obrigatória
 async def setup(bot: commands.Bot):

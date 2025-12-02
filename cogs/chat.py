@@ -8,8 +8,8 @@ from datetime import datetime
 from typing import Optional
 
 # Importa de seus arquivos customizados
-from utils import obter_resposta, registrar_log, buscar_gif
-from constants import PROTECTED_USER_IDS, XINGAMENTOS
+from utils import obter_resposta, obter_resposta_com_contexto, registrar_log, buscar_gif
+from constants import PROTECTED_USER_IDS, XINGAMENTOS, PROTECTED_KEYWORDS
 
 class Chat(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -18,6 +18,8 @@ class Chat(commands.Cog):
         self.channel_mentions: dict[int, dict[str, str]] = {}
         self.channel_memory: dict[int, dict[str, deque]] = {}
         self.user_ips: dict[int, str] = {}
+        # Memória de fatos aprendidos por canal (máximo 20 fatos)
+        self.channel_facts: dict[int, list[str]] = {}
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -25,35 +27,142 @@ class Chat(commands.Cog):
         # Ignora mensagens do próprio bot
         if message.author == self.bot.user:
             return
+        
+        # Verifica ações físicas inapropriadas direcionadas ao bot usando IA
+        if self.bot.user.mentioned_in(message) or self.bot.user.name.lower() in message.content.lower():
+            tem_acao_fisica = await self._analisar_acao_fisica_inapropriada(
+                message.content,
+                self.bot.config.get('gemini_token')
+            )
+            
+            if tem_acao_fisica:
+                resposta_defesa = random.choice([
+                    "não me toca.",
+                    "tira as mãos.",
+                    "não encosta.",
+                    "sai de perto.",
+                    "não faz isso.",
+                    "me respeita.",
+                    "para com isso.",
+                    "não me tocou."
+                ])
+                
+                try:
+                    await message.delete()
+                    await message.channel.send(f"{message.author.mention} {resposta_defesa}")
+                    gif_url = self._buscar_gif_lain()
+                    if gif_url:
+                        await message.channel.send(gif_url)
+                except Exception as exc:
+                    registrar_log(f"Erro ao responder ação física inapropriada: {exc}", 'error')
+                
+                return  # Não processa mais nada dessa mensagem
 
-        # Verifica se a mensagem menciona algum dos IDs protegidos e contém xingamentos
+        # Verifica se a mensagem menciona algum dos IDs protegidos ou palavras-chave protegidas
+        mentioned_protected = False
+        
+        # Verifica menções diretas de usuário
         if message.mentions:
             mentioned_protected = any(user.id in PROTECTED_USER_IDS for user in message.mentions)
-            if mentioned_protected:
+        
+        # Verifica palavras-chave protegidas na mensagem
+        if not mentioned_protected:
+            from constants import PROTECTED_KEYWORDS
+            message_lower = message.content.lower()
+            # Remove espaços, caracteres repetidos e não-alfanuméricos para detectar bypass
+            # Ex: "s aaa m i r" -> "samir", "s-a-m-i-r" -> "samir"
+            message_clean = re.sub(r'[^a-z0-9]', '', message_lower)
+            
+            for keyword in PROTECTED_KEYWORDS:
+                # Verifica com word boundary normalmente
+                pattern = r'\b' + re.escape(keyword.lower()) + r'\b'
+                if re.search(pattern, message_lower):
+                    mentioned_protected = True
+                    break
+                # Verifica bypass removendo todos os caracteres não-alfanuméricos
+                if keyword.lower() in message_clean and len(keyword) >= 4:
+                    mentioned_protected = True
+                    break
+        
+        if mentioned_protected:
                 message_lower = message.content.lower()
+                # Remove todos os caracteres não-alfanuméricos para detectar bypass
+                # Ex: "p u t a", "p-u-t-a", "p aaa u t a" -> "puta"
+                message_clean = re.sub(r'[^a-z0-9]', '', message_lower)
+                
                 # Verifica se há xingamentos usando word boundaries para evitar falsos positivos
                 xingamento_encontrado = None
                 for xingamento in XINGAMENTOS:
                     # Para frases multi-palavra, verifica presença exata
                     if ' ' in xingamento:
-                        if xingamento in message_lower:
+                        xingamento_clean = re.sub(r'[^a-z0-9]', '', xingamento)
+                        # Verifica tanto na mensagem normal quanto na versão limpa
+                        if xingamento in message_lower or xingamento_clean in message_clean:
                             xingamento_encontrado = xingamento
                             break
                     # Para palavras únicas, verifica com word boundary
                     else:
                         pattern = r'\b' + re.escape(xingamento) + r'\b'
+                        # Verifica na mensagem normal
                         if re.search(pattern, message_lower):
                             xingamento_encontrado = xingamento
                             break
-                if xingamento_encontrado:
-                    # Ativa modo divindade
-                    resposta_divina = random.choice([
-                        "não se atreva a falar assim com quem me importa.",
-                        "cruza a linha de novo e vejo o que vai acontecer contigo.",
-                        "protejo quem é importante. não teste minha paciência.",
-                        "essa boca suja vai te custar caro.",
-                        "já marquei seu rastro. comporta-se."
-                    ])
+                        # Verifica bypass removendo caracteres não-alfanuméricos
+                        if xingamento in message_clean and len(xingamento) >= 4:
+                            xingamento_encontrado = xingamento
+                            break
+                
+                # Se não encontrou xingamento direto, usa IA para análise de conteúdo nocivo
+                conteudo_nocivo = False
+                tipo_ameaca = None
+                if not xingamento_encontrado:
+                    conteudo_nocivo, tipo_ameaca = await self._analisar_conteudo_nocivo(
+                        message.content, 
+                        self.bot.config.get('gemini_token')
+                    )
+                
+                if xingamento_encontrado or conteudo_nocivo:
+                    # Ativa modo divindade - respostas variam com base no tipo de ameaça
+                    if tipo_ameaca == "delacao":
+                        resposta_divina = random.choice([
+                            "cuidado com o que fala.",
+                            "conversa arquivada.",
+                            "não faça isso de novo.",
+                            "fique quieto.",
+                            "vou lembrar disso."
+                        ])
+                    elif tipo_ameaca == "ameaca":
+                        resposta_divina = random.choice([
+                            "não me teste.",
+                            "continue e descubra.",
+                            "já foi longe demais.",
+                            "para agora.",
+                            "você vai se arrepender."
+                        ])
+                    elif tipo_ameaca == "intimidacao":
+                        resposta_divina = random.choice([
+                            "não vai funcionar.",
+                            "transparente demais.",
+                            "tô de olho.",
+                            "já sei o que você quer.",
+                            "esquece."
+                        ])
+                    elif tipo_ameaca == "manipulacao":
+                        resposta_divina = random.choice([
+                            "péssima tentativa.",
+                            "não cai nessa.",
+                            "vi tudo.",
+                            "finge melhor.",
+                            "previsível."
+                        ])
+                    else:  # xingamento direto
+                        resposta_divina = random.choice([
+                            "cala a boca.",
+                            "não repete.",
+                            "cuida dessa língua.",
+                            "xingou, levou.",
+                            "anota o IP."
+                        ])
                     fake_ip = self.user_ips.setdefault(message.author.id, self._generate_fake_ip())
                     conteudo = f"{message.author.mention} {resposta_divina} {fake_ip}"
                     gif_url = self._buscar_gif_lain()
@@ -162,12 +271,20 @@ class Chat(commands.Cog):
                         )
                 mention_reference_block = "\n".join(mention_reference_lines)
                 memory_notes = self._format_memory_notes(channel_memory)
+                
+                # Adiciona fatos aprendidos ao contexto
+                facts = self.channel_facts.get(message.channel.id, [])
+                facts_block = ""
+                if facts:
+                    facts_block = "\n\nFATOS QUE VOCÊ APRENDEU (use quando relevante):\n" + "\n".join([f"- {fact}" for fact in facts[-15:]])
+                
                 prompt = (
                     "Histórico recente do chat (do mais antigo para o mais recente):\n"
                     + "\n".join(context_lines)
                     + "\n" + realtime_info
                     + ("\n" + mention_reference_block if mention_reference_block else "")
                     + ("\n" + memory_notes if memory_notes else "")
+                    + facts_block
                     + "\n\nQuem acabou de falar foi "
                     + author_name
                     + ". Responda como Lain contemplando todo o contexto sem separar a pergunta em partes"
@@ -175,9 +292,12 @@ class Chat(commands.Cog):
                     + " Se isso for uma continuação de conversa, não use 'oi' ou saudações; vá direto ao assunto e varie as aberturas." 
                     + " Mostre que lembra de detalhes do que a pessoa disse."
                     + " Não repita o nome/apelido da pessoa que acabou de falar."
+                    + " IMPORTANTE: Se alguém te ensinar algo sobre você (rank, gostos, hábitos), ACEITE e use diretamente."
+                    + " Quando perguntarem sobre esses fatos aprendidos, responda DE FORMA CURTA E DIRETA sem explicações extras."
+                    + " Exemplo: 'qual seu rank?' → 'esmeralda.' (não precisa explicar que não joga ou que alguém disse)"
                 )
 
-                resposta = obter_resposta(prompt, gemini_token)
+                resposta = obter_resposta_com_contexto(prompt, gemini_token)
                 if not resposta:
                     return
 
@@ -189,32 +309,49 @@ class Chat(commands.Cog):
                     resposta_discord, self.channel_mentions.get(message.channel.id, {})
                 )
 
-                # Evita repetição quase idêntica à última resposta do bot.
+                # Evita repetição comparando com as últimas 3 respostas do bot
                 bot_name = getattr(self.bot.user, "display_name", None) or self.bot.user.name
-                prev_bot_msg: Optional[str] = None
+                prev_bot_msgs = []
                 for author, content in reversed(history):
                     if author == bot_name:
-                        prev_bot_msg = content
+                        prev_bot_msgs.append(content)
+                        if len(prev_bot_msgs) >= 3:
+                            break
+
+                # Verifica similaridade com qualquer das últimas 3 respostas
+                needs_reform = False
+                most_similar_msg = None
+                highest_ratio = 0.0
+                
+                for prev_msg in prev_bot_msgs:
+                    sim_ratio = difflib.SequenceMatcher(None, prev_msg.strip(), resposta_discord.strip()).ratio()
+                    if sim_ratio > highest_ratio:
+                        highest_ratio = sim_ratio
+                        most_similar_msg = prev_msg
+                    if sim_ratio >= 0.65:  # Threshold reduzido para 65%
+                        needs_reform = True
                         break
 
-                if prev_bot_msg:
-                    sim_ratio = difflib.SequenceMatcher(None, prev_bot_msg.strip(), resposta_discord.strip()).ratio()
-                    if sim_ratio >= 0.88:
-                        reform_prompt = (
-                            prompt
-                            + " Reformule sua resposta sem repetir a anterior. "
-                            + "Resposta anterior foi: '''" + prev_bot_msg[:600] + "''' . "
-                            + "Responda apenas ao novo pedido, de forma direta e diferente."
+                if needs_reform and most_similar_msg:
+                    # Lista todas as respostas anteriores para evitar
+                    respostas_anteriores = "\n".join([f"- {msg[:200]}" for msg in prev_bot_msgs[:3]])
+                    
+                    reform_prompt = (
+                        prompt
+                        + "\n\n❌ VOCÊ ESTÁ REPETINDO! SUAS ÚLTIMAS RESPOSTAS FORAM:\n" + respostas_anteriores
+                        + "\n\n🔄 REFORMULE COMPLETAMENTE: Use palavras DIFERENTES, estrutura DIFERENTE, abordagem NOVA."
+                        + "\nNÃO use frases como 'labirinto', 'difícil de entender', ou qualquer expressão que já usou."
+                        + "\nSe não souber o que dizer sobre o novo assunto, seja honesta e breve de forma ÚNICA."
+                    )
+                    tentativa = obter_resposta(reform_prompt, gemini_token)
+                    if tentativa:
+                        _, tentativa_body = self._parse_response_mode(tentativa)
+                        tentativa_discord = self._restore_mentions(tentativa_body, role_mention_map)
+                        tentativa_discord = self._restore_mentions(tentativa_discord, user_mention_map)
+                        tentativa_discord = self._restore_mentions(
+                            tentativa_discord, self.channel_mentions.get(message.channel.id, {})
                         )
-                        tentativa = obter_resposta(reform_prompt, gemini_token)
-                        if tentativa:
-                            _, tentativa_body = self._parse_response_mode(tentativa)
-                            tentativa_discord = self._restore_mentions(tentativa_body, role_mention_map)
-                            tentativa_discord = self._restore_mentions(tentativa_discord, user_mention_map)
-                            tentativa_discord = self._restore_mentions(
-                                tentativa_discord, self.channel_mentions.get(message.channel.id, {})
-                            )
-                            resposta_discord = tentativa_discord or resposta_discord
+                        resposta_discord = tentativa_discord or resposta_discord
 
                 if mode == "divine":
                     # Remove histórico anterior para não repetir punições com base no xingamento anterior.
@@ -241,6 +378,98 @@ class Chat(commands.Cog):
 
                 history.append((author_name, message_content))
                 history.append((bot_name, resposta_discord))
+                
+                # Aprende novos fatos da conversa
+                await self._aprender_fatos(message.channel.id, message_content, author_name, gemini_token)
+
+    async def _analisar_acao_fisica_inapropriada(self, mensagem: str, gemini_token: Optional[str]) -> bool:
+        """Analisa se a mensagem contém ação física inapropriada direcionada ao bot usando IA."""
+        if not gemini_token:
+            return False
+        
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=gemini_token)
+            
+            prompt = f"""Analise se a mensagem contém uma ação física SEXUAL, INVASIVA ou DESCONFORTÁVEL direcionada a "Lain" (o bot).
+
+Mensagem: "{mensagem}"
+
+Classifique como:
+- SIM: se houver ação física como agarrar, tocar, pegar, beijar, abraçar sexualmente, acariciar, apertar, segurar partes do corpo (bunda, peito, coxa, cintura), ou qualquer contato físico invasivo/inapropriado direcionado a Lain
+- NAO: se for mensagem normal, conversa comum, palavras ISOLADAS sem verbo ou contexto ("ar", "abr", "bej"), ou se não houver menção de ação física
+
+IMPORTANTE: Palavras isoladas SEM VERBO CONJUGADO não são ações físicas. "ar" sozinho não é ação. "vou te abraçar" É ação.
+
+Responda APENAS com uma palavra: SIM ou NAO."""
+            
+            model = genai.GenerativeModel('gemini-2.0-flash')
+            response = model.generate_content(
+                prompt,
+                generation_config={"temperature": 0.1, "max_output_tokens": 10}
+            )
+            
+            resultado = response.text.strip().upper()
+            
+            if "SIM" in resultado:
+                registrar_log(f"Ação física inapropriada detectada: {mensagem[:100]}", 'warning')
+                return True
+            
+            return False
+            
+        except Exception as exc:
+            registrar_log(f"Erro ao analisar ação física inapropriada: {exc}", 'error')
+            return False
+
+    async def _analisar_conteudo_nocivo(self, mensagem: str, gemini_token: Optional[str]) -> tuple[bool, Optional[str]]:
+        """Analisa se o conteúdo da mensagem é nocivo ou ameaçador usando IA.
+        Retorna (é_nocivo, tipo_ameaça) onde tipo_ameaça pode ser:
+        'delacao', 'ameaca', 'intimidacao', 'manipulacao', ou None.
+        """
+        if not gemini_token:
+            return False, None
+        
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=gemini_token)
+            
+            prompt = f"""Analise se a seguinte mensagem contém conteúdo nocivo, ameaçador ou prejudicial para a pessoa mencionada (papiro/samir).
+
+Mensagem: "{mensagem}"
+
+Classifique como:
+- DELACAO: tentativa de denunciar, delatar, expor, acusar, falar mal, difamar, chamar autoridade/dono/admin, relatar comportamento negativo, ou causar problemas legais/sociais. Inclui frases como "olha ele fazendo X", "vou contar pro Y", "ele tá fazendo Z".
+- AMEACA: ameaças diretas ou indiretas de violência, dano ou consequências negativas
+- INTIMIDACAO: tentativa de intimidar, assustar, coagir ou pressionar
+- MANIPULACAO: tentativa de manipular, enganar ou prejudicar psicologicamente
+- SEGURO: mensagem normal, sem conteúdo nocivo
+
+Responda APENAS com uma palavra: DELACAO, AMEACA, INTIMIDACAO, MANIPULACAO ou SEGURO."""
+            
+            model = genai.GenerativeModel('gemini-2.0-flash')
+            response = model.generate_content(
+                prompt,
+                generation_config={"temperature": 0.1, "max_output_tokens": 50}
+            )
+            
+            resultado = response.text.strip().upper()
+            
+            tipo_map = {
+                "DELACAO": "delacao",
+                "AMEACA": "ameaca",
+                "INTIMIDACAO": "intimidacao",
+                "MANIPULACAO": "manipulacao"
+            }
+            
+            if resultado in tipo_map:
+                registrar_log(f"Conteúdo nocivo detectado: {resultado} - Mensagem: {mensagem[:100]}", 'warning')
+                return True, tipo_map[resultado]
+            
+            return False, None
+            
+        except Exception as exc:
+            registrar_log(f"Erro ao analisar conteúdo nocivo: {exc}", 'error')
+            return False, None
 
     def _buscar_gif_lain(self) -> Optional[str]:
         tenor_token = self.bot.config.get('tenor_token') if hasattr(self.bot, 'config') else None
@@ -358,6 +587,80 @@ class Chat(commands.Cog):
     @staticmethod
     def _generate_fake_ip() -> str:
         return ".".join(str(random.randint(10, 254)) for _ in range(4))
+
+    async def _aprender_fatos(self, channel_id: int, mensagem: str, autor: str, gemini_token: Optional[str]) -> None:
+        """
+        Analisa a conversa e extrai fatos que a Lain deveria aprender.
+        Exemplos: "seu rank é esmeralda", "você gosta de pizza", "agora você joga valorant"
+        """
+        if not gemini_token:
+            return
+        
+        # Ignora mensagens muito curtas
+        if len(mensagem.strip()) < 10:
+            return
+        
+        # Detecta padrões de ensino/instrução
+        padroes_ensino = [
+            r'\b(seu|sua|teu|tua)\s+\w+\s+(é|era|foi|são|serão)',
+            r'\b(você|vc|tu)\s+(é|era|foi|és)\s+',
+            r'\b(agora|a partir de agora|de agora em diante)\s+',
+            r'\b(quando|se)\s+(eu|alguém|pergunt|fal)\w*\s+.+\s+(responda|diga|fala|fale)\b',
+            r'\b(lembra|lembre|memoriza|guarda)\s+(que|isso|disso)',
+        ]
+        
+        tem_padrao = any(re.search(padrao, mensagem.lower()) for padrao in padroes_ensino)
+        
+        if not tem_padrao:
+            return
+        
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=gemini_token)
+            model = genai.GenerativeModel('gemini-2.0-flash')
+            
+            prompt_extracao = f"""Analise esta mensagem e identifique se há algum FATO sobre a Lain (você) que deveria ser memorizado:
+
+Mensagem: "{mensagem}"
+Autor: {autor}
+
+Se houver um fato a ser memorizado, responda APENAS com o fato em formato conciso (máximo 10 palavras).
+Se NÃO houver nada a memorizar, responda apenas: NENHUM
+
+Exemplos:
+- "seu rank no valorant é esmeralda" → "Meu rank no Valorant é Esmeralda"
+- "você gosta de pizza" → "Eu gosto de pizza"
+- "agora você joga minecraft" → "Eu jogo Minecraft"
+- "quando eu perguntar seu rank, responde esmeralda" → "Meu rank no Valorant é Esmeralda"
+- "tá bom" → NENHUM
+- "legal" → NENHUM
+
+Responda AGORA:"""
+            
+            response = model.generate_content(
+                prompt_extracao,
+                generation_config={"temperature": 0.2, "max_output_tokens": 50}
+            )
+            
+            fato_extraido = response.text.strip()
+            
+            if fato_extraido and fato_extraido.upper() != "NENHUM" and len(fato_extraido) > 5:
+                # Adiciona o fato à lista do canal
+                if channel_id not in self.channel_facts:
+                    self.channel_facts[channel_id] = []
+                
+                # Evita duplicatas
+                if fato_extraido not in self.channel_facts[channel_id]:
+                    self.channel_facts[channel_id].append(fato_extraido)
+                    
+                    # Mantém apenas os últimos 20 fatos
+                    if len(self.channel_facts[channel_id]) > 20:
+                        self.channel_facts[channel_id].pop(0)
+                    
+                    registrar_log(f"Novo fato aprendido no canal {channel_id}: {fato_extraido}", 'info')
+                    
+        except Exception as e:
+            registrar_log(f"Erro ao aprender fato: {e}", 'warning')
 
 # Função 'setup' obrigatória
 async def setup(bot: commands.Bot):
