@@ -9,6 +9,7 @@ from typing import Optional
 
 # Importa de seus arquivos customizados
 from utils import obter_resposta, registrar_log, buscar_gif
+from constants import PROTECTED_USER_IDS, XINGAMENTOS
 
 class Chat(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -24,6 +25,46 @@ class Chat(commands.Cog):
         # Ignora mensagens do próprio bot
         if message.author == self.bot.user:
             return
+
+        # Verifica se a mensagem menciona algum dos IDs protegidos e contém xingamentos
+        if message.mentions:
+            mentioned_protected = any(user.id in PROTECTED_USER_IDS for user in message.mentions)
+            if mentioned_protected:
+                message_lower = message.content.lower()
+                xingamento_encontrado = next((x for x in XINGAMENTOS if x in message_lower), None)
+                if xingamento_encontrado:
+                    # Ativa modo divindade
+                    resposta_divina = random.choice([
+                        "não se atreva a falar assim com quem me importa.",
+                        "cruza a linha de novo e vejo o que vai acontecer contigo.",
+                        "protejo quem é importante. não teste minha paciência.",
+                        "essa boca suja vai te custar caro.",
+                        "já marquei seu rastro. comporta-se."
+                    ])
+                    fake_ip = self._generate_fake_ip()
+                    conteudo = f"{message.author.mention} {resposta_divina} {fake_ip}"
+                    gif_url = self._buscar_gif_lain()
+                    
+                    try:
+                        await message.delete()
+                        await message.channel.send(conteudo, delete_after=5)
+                        if gif_url:
+                            await message.channel.send(gif_url, delete_after=4.5)
+                    except discord.Forbidden:
+                        registrar_log(
+                            f"Sem permissão para deletar mensagem ofensiva aos IDs protegidos em '{message.guild.name}'",
+                            'warning'
+                        )
+                        try:
+                            await message.reply(conteudo, delete_after=5)
+                            if gif_url:
+                                await message.channel.send(gif_url, delete_after=4.5)
+                        except Exception as exc:
+                            registrar_log(f"Erro ao responder mensagem ofensiva aos IDs protegidos: {exc}", 'error')
+                    except Exception as exc:
+                        registrar_log(f"Erro ao processar mensagem ofensiva aos IDs protegidos: {exc}", 'error')
+                    
+                    return  # Não processa mais nada dessa mensagem
 
         # Verifica se o bot foi mencionado na mensagem
         if self.bot.user.mentioned_in(message):

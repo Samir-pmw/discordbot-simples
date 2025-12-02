@@ -4,6 +4,50 @@ from discord import ActivityType
 
 # --- Constantes e textos usados pelo bot (Lain) ---
 
+# IDs protegidos - Mensagens com xingamentos direcionadas a esses usuários serão deletadas
+PROTECTED_USER_IDS = {966479778918064192, 902219603579646002}
+
+# Lista de xingamentos para detecção
+XINGAMENTOS = [
+    "vadia", "de merda", "puta", "vagaba", "kenga", "vaca", "cadela", "piranha", "galinha",
+    "biscate", "safada", "vagabunda", "prostituta", "arrombada", "traste", 
+    "lixo", "baranga", "feiosa", "gorda", "nojenta", "fedida", "burra", 
+    "idiota", "chata", "miserável", "trouxa", "ridícula", "patética", 
+    "inútil", "fraca", "bosta", "cretina", "desgraçada", "maluca", 
+    "carrapato", "sanguessuga", "parasita", "escrota", "porca", "imunda", 
+    "suja", "podre", "depravada", "tarada", "louca", "desequilibrada", 
+    "histérica", "fofoqueira", "intriguenta", "falsa", "cínica", "hipócrita", 
+    "mesquinha", "egoísta", "lerda", "boba", "tapada", "lerdaça", "otária",
+    "sonsa", "pilantra", "safadinha", "descarada", "sem-vergonha", "atrevida",
+    "convencida", "arrogante", "metida", "esnobada", "mala", "insuportável",
+    "grossa", "mal-educada", "desleixada", "desonesta", "traíra", "venenosa",
+    "maldosa", "invejosa", "ciumenta", "controladora", "manipuladora", 
+    "despachada", "abusada", "esquelética", "baleia", "desengonçada", 
+    "cara-de-pau", "cara-de-rato", "desmilinguida", "mal-acabada", "sebosa",
+    "cabelo-de-vassoura", "fuça-de-porco", "olho-torto", "boca-de-sapo", 
+    "perna-de-saracura", "corcunda", "cheia-de-mancha", "murcha", "enrugada",
+    "desbotada", "mal-ajeitada", "analfabeta", "cabeça-oca", "cabeça-de-vento",
+    "desmiolada", "atrapalhada", "confusa", "doida", "alienada", "sem-noção",
+    "descerebrada", "tonta", "abestada", "lesada", "paspalha", "palerma",
+    "ignorante", "estúpida", "retardada", "lenta", "quadrada", "devassa",
+    "pervertida", "sem-classe", "vulgar", "despudorada", "libidinosa", "quenga",
+    "rodada", "leviana", "fácil", "atirada", "desbocada", "sem-moral", 
+    "decaída", "perdida", "desonrada", "solta", "mal-intencionada", 
+    "sedutora-barata", "carne-de-pescoço", "fedelha", "catinguenta", 
+    "imprestável", "surrada", "esculhambada", "relaxada", "bagaceira", "puída",
+    "rasgada", "encardida", "mal-cheirosa", "rançosa", "mofada", "bolorenta",
+    "sarnenta", "piolhenta", "verminosa", "infestada", "nojosa", "asquerosa",
+    "peste", "praga", "urubu", "jararaca", "cobra", "rata", "barata", 
+    "mosca-morta", "vaca-mansa", "galinha-morta", "bicho-preguiça", "capivara",
+    "macaca", "jumenta", "mula", "égua", "cavala", "bodega", "carniça", 
+    "trambolho", "abortada", "desmamada", "desnaturada", "amaldiçoada",
+    "endemoniada", "encapetada", "diaba", "bruxa", "vampira", "sapa",
+    "sanguinária", "desalmada", "sem-coração", "carcereira", "torpe",
+    "abominável", "detestável", "intragável", "insolente", "se fode", "cala a boca",
+    "fdp", "filho da puta", "filha da puta", "vai tomar no cu", "vsf", "vai se foder",
+    "pau no cu", "cu", "caralho", "porra", "merda", "bosta"
+]
+
 musicas_atividade = [
     "🎧 Pulse - The Smashing Pumpkins",
     "🎧 Wired Life - KOTOKO",
