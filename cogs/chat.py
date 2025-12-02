@@ -41,7 +41,7 @@ class Chat(commands.Cog):
                         "essa boca suja vai te custar caro.",
                         "já marquei seu rastro. comporta-se."
                     ])
-                    fake_ip = self._generate_fake_ip()
+                    fake_ip = self.user_ips.setdefault(message.author.id, self._generate_fake_ip())
                     conteudo = f"{message.author.mention} {resposta_divina} {fake_ip}"
                     gif_url = self._buscar_gif_lain()
                     
