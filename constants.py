@@ -110,7 +110,40 @@ XINGAMENTOS = [
     "esculhambada", "esculhambado", "relaxada", "relaxado", "desleixada", "desleixado",
     "trambolho", "tranqueira", "porcaria", "imundície", "sujeira", "nojeira",
     "fedelha", "fedelho", "moleque", "pivete", "pirralha", "pirralhão",
-    "gremista", "mano do céu"
+    "gremista", "mano do céu",
+    
+    # Insultos adicionais
+    "cretina", "débil", "jumento", "jumenta", "asno", "asna", "besta", "besta quadrada",
+    "monte de bosta", "monte de merda", "pedaço de merda", "ser desprezível",
+    "escroto", "escrota", "filho duma égua", "desgraçada", "lazarento", "lazarenta",
+    "bundão", "bundona", "cuzão", "cuzona", "babaca", "babacona", "babacão",
+    "filho de uma égua", "puta velha", "puto velho", "velha safada", "velho safado",
+    "nojenta do caralho", "nojento do caralho", "fdp do caralho", "vsf mano",
+    "cala essa boca", "fecha essa boca", "cala essa merda", "fecha o cu",
+    "pé no saco", "saco murcho", "escroto murcho", "pau mole", "broxa",
+    "inútil da porra", "inútil do caralho", "merda de pessoa", "bosta de gente",
+    "ser inferior", "subcelebridade", "ze mané", "zé ruela", "zé ninguém",
+    "pé rapado", "pé de chinelo", "joão ninguém", "maria vai com as outras",
+    "maria chuteira", "maria gasolina", "zé droguinha", "drogado", "drogada",
+    "viciado", "viciada", "cracudo", "cracuda", "cachaceiro", "bêbado", "bêbada",
+    "alcoólatra", "biscate de esquina", "puta de esquina", "rameira", "meretriz",
+    "prostituta barata", "putedo", "putaria", "puteiro ambulante", "galinhagem",
+    "zé buceta", "maria piranha", "vagabundo de marca maior", "vagabunda de marca maior",
+    "filho de rapariga", "filha de rapariga", "cria de satanás", "cria do capeta",
+    "encosto", "mal-assombrada", "mal-assombrado", "azarado", "azarada", "pé frio",
+    "mulambo", "maltrapilho", "esfarrapado", "esfarrapada", "imundão", "imundona",
+    "sebento", "sebenta", "seboso", "gordão seboso", "gordona sebosa",
+    "anão", "anã", "baixinho", "baixinha", "tampinha", "tampão", "meia tigela",
+    "café com leite", "fraco", "fraca", "fracote", "fracota", "molengão", "molenga",
+    "frouxo", "frouxa", "frouxão", "frouxona", "covarde", "medroso", "medrosa",
+    "cagão de marca maior", "cagona de marca maior", "bundão medroso", "bundona medrosa",
+    "panaca", "panacão", "panacona", "patife", "patifão", "patifona",
+    "sacripanta", "bandido", "bandida", "marginal", "meliante", "elemento",
+    "vagal", "vadia da silva", "vadio dos santos", "sem futuro", "fracassado",
+    "fracassada", "losers", "perdedor", "perdedora", "falido", "falida",
+    "fudido da vida", "fudida da vida", "quebrado", "quebrada", "miserável",
+    "pobretão", "pobretona", "ralé", "gentalha", "escória", "escória humana",
+    "excremento humano", "detrito", "lixo da sociedade", "esgoto", "fossa"
 ]
 
 musicas_atividade = [
