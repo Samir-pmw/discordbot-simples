@@ -45,7 +45,8 @@ XINGAMENTOS = [
     "sanguinária", "desalmada", "sem-coração", "carcereira", "torpe",
     "abominável", "detestável", "intragável", "insolente", "se fode", "cala a boca",
     "fdp", "filho da puta", "filha da puta", "vai tomar no cu", "vsf", "vai se foder",
-    "pau no cu", "cu", "caralho", "porra", "merda", "bosta"
+    "pau no cu", "cu", "caralho", "porra", "merda", "bosta", "imundo", "imunda",
+    "vagabundo", "otário", "otária", "desgraça", "maldito", "maldita"
 ]
 
 musicas_atividade = [

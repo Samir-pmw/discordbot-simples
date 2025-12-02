@@ -31,7 +31,20 @@ class Chat(commands.Cog):
             mentioned_protected = any(user.id in PROTECTED_USER_IDS for user in message.mentions)
             if mentioned_protected:
                 message_lower = message.content.lower()
-                xingamento_encontrado = next((x for x in XINGAMENTOS if x in message_lower), None)
+                # Verifica se há xingamentos usando word boundaries para evitar falsos positivos
+                xingamento_encontrado = None
+                for xingamento in XINGAMENTOS:
+                    # Para frases multi-palavra, verifica presença exata
+                    if ' ' in xingamento:
+                        if xingamento in message_lower:
+                            xingamento_encontrado = xingamento
+                            break
+                    # Para palavras únicas, verifica com word boundary
+                    else:
+                        pattern = r'\b' + re.escape(xingamento) + r'\b'
+                        if re.search(pattern, message_lower):
+                            xingamento_encontrado = xingamento
+                            break
                 if xingamento_encontrado:
                     # Ativa modo divindade
                     resposta_divina = random.choice([
